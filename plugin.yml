@@ -2,5 +2,9 @@ name: Easyland
 main: com.example.easyland.EasylandPlugin
 version: 1.0
 api-version: 1.21
-commands: {}
+commands:
+  easyland:
+    description: 领地管理指令
+    usage: /easyland pos1 | pos2 | create
+    aliases: [el, land]
 description: A PaperMC 1.21.4 plugin template.
