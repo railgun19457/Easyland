@@ -1,0 +1,6 @@
+name: Easyland
+main: com.example.easyland.EasylandPlugin
+version: 1.0
+api-version: 1.21
+commands: {}
+description: A PaperMC 1.21.4 plugin template.
