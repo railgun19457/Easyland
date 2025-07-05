@@ -54,12 +54,12 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§c你没有权限选择领地！");
                 return true;
             }
-            ItemStack wand = new ItemStack(Material.WOODEN_SHOVEL);
+            ItemStack wand = new ItemStack(Material.WOODEN_HOE);
             ItemMeta meta = wand.getItemMeta();
             meta.displayName(Component.text("§a领地选择"));
             wand.setItemMeta(meta);
             player.getInventory().addItem(wand);
-            player.sendMessage("已获得领地选择木铲，请右键区块内任意方块进行选点。");
+            player.sendMessage("已获得领地选择工具，请右键区块内任意方块进行选点。");
         } else if (args.length == 1 && args[0].equalsIgnoreCase("create")) {
             if (!player.hasPermission(CREATE_PERMISSION)) {
                 player.sendMessage("§c你没有权限创建领地！");
@@ -67,7 +67,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             }
             Chunk[] selects = landSelectListener.getPlayerSelects(player);
             if (selects[0] == null || selects[1] == null) {
-                player.sendMessage("请先用木铲右键选择两个区块。");
+                player.sendMessage("请先用工具右键选择两个区块。");
                 return true;
             }
             boolean success = landManager.createLandByChunk(selects[0], selects[1]);
@@ -83,7 +83,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             }
             Chunk[] selects = landSelectListener.getPlayerSelects(player);
             if (selects[0] == null || selects[1] == null) {
-                player.sendMessage("请先用木铲右键选择两个区块。");
+                player.sendMessage("请先用工具右键选择两个区块。");
                 return true;
             }
             boolean success = landManager.claimLand(player, selects[0], selects[1]);
