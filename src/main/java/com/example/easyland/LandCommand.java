@@ -63,7 +63,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             wand.setItemMeta(meta);
             player.getInventory().addItem(wand);
             player.sendMessage("已获得领地选择工具，请右键区块内任意方块进行选点。");
-        } else if (args.length == 1 && args[0].equalsIgnoreCase("create")) {
+        } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("create")) {
             if (!player.hasPermission(CREATE_PERMISSION)) {
                 player.sendMessage("§c你没有权限创建领地！");
                 return true;
@@ -92,11 +92,8 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                     player.sendMessage("§cID不合法，仅支持中英文、数字、下划线、短横线，且不超过32字符。");
                     return true;
                 }
-            } else if (args.length == 1) {
-                id = "land-" + System.currentTimeMillis();
             } else {
-                player.sendMessage("用法: /easyland create <id>");
-                return true;
+                id = "land-" + System.currentTimeMillis();
             }
             boolean success = landManager.createLandByChunk(selects[0], selects[1], id);
             if (success) {
@@ -292,6 +289,29 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return ids;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("claim")) {
+            // claim 补全所有无主领地id
+            List<String> ids = new java.util.ArrayList<>();
+            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                if (land.getId() != null && !land.getId().isEmpty()) {
+                    ids.add(land.getId());
+                }
+            }
+            return ids;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("unclaim")) {
+            // unclaim 补全自己拥有的领地id
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                List<String> ids = new java.util.ArrayList<>();
+                for (ChunkLand land : landManager.getAllClaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty() && player.getUniqueId().toString().equals(land.getOwner())) {
+                        ids.add(land.getId());
+                    }
+                }
+                return ids;
+            }
         }
         return Collections.emptyList();
     }

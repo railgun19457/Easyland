@@ -21,7 +21,7 @@ public class EasylandPlugin extends JavaPlugin {
         maxChunksPerLand = getConfig().getInt("max-chunks-per-land", 4);
         showDurationSeconds = getConfig().getInt("show-duration-seconds", 10);
         landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
-        landSelectListener = new LandSelectListener();
+        landSelectListener = new LandSelectListener(landManager);
         landProtectionListener = new LandProtectionListener(landManager);
         landEnterListener = new LandEnterListener(landManager);
         // 注册事件监听器

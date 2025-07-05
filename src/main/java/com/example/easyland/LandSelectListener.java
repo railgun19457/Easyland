@@ -18,6 +18,11 @@ import java.util.UUID;
 public class LandSelectListener implements Listener {
     // 记录每个玩家最近的两次区块选择
     private final Map<UUID, Chunk[]> selectMap = new HashMap<>();
+    private final LandManager landManager;
+
+    public LandSelectListener(LandManager landManager) {
+        this.landManager = landManager;
+    }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -31,6 +36,21 @@ public class LandSelectListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         Chunk chunk = player.getLocation().getChunk();
+        // 检查区块是否已被任何领地占用
+        for (ChunkLand land : landManager.getAllClaimedLands()) {
+            if (land.contains(chunk)) {
+                player.sendMessage("§c该区块已被其他领地占用，无法选点。");
+                event.setCancelled(true);
+                return;
+            }
+        }
+        for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+            if (land.contains(chunk)) {
+                player.sendMessage("§c该区块已被其他领地占用，无法选点。");
+                event.setCancelled(true);
+                return;
+            }
+        }
         Chunk[] selects = selectMap.getOrDefault(player.getUniqueId(), new Chunk[2]);
         selects[0] = selects[1]; // 上一次的变为第一次
         selects[1] = chunk;     // 本次为第二次
