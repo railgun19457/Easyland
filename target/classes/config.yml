@@ -10,4 +10,4 @@ max-chunks-per-land: 256
 land-boundary-particle: FLAME
 
 #是否保护领地内不被生物破坏（如苦力怕爆炸、末影人搬运等）
-protect-from-mob-griefing: true
+protect-from-mob-griefing: false
