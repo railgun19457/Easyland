@@ -172,6 +172,14 @@ public class LandManager {
         return chunkCount <= maxChunksPerLand;
     }
 
+    public Collection<ChunkLand> getAllUnclaimedLands() {
+        return unclaimedLands.values();
+    }
+
+    public Collection<ChunkLand> getAllClaimedLands() {
+        return lands.values();
+    }
+
     public int getMaxLandsPerPlayer() { return maxLandsPerPlayer; }
     public int getMaxChunksPerLand() { return maxChunksPerLand; }
 }

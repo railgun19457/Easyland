@@ -17,6 +17,7 @@ import net.kyori.adventure.text.Component;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandManager landManager;
@@ -86,6 +87,19 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("请先用工具右键选择两个区块。");
                 return true;
             }
+            // 新增：判断玩家当前所处区块是否在无主领地内
+            Chunk playerChunk = player.getLocation().getChunk();
+            boolean inUnclaimed = false;
+            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                if (land.contains(playerChunk)) {
+                    inUnclaimed = true;
+                    break;
+                }
+            }
+            if (!inUnclaimed) {
+                player.sendMessage("你必须站在无主领地内才能认领！");
+                return true;
+            }
             boolean success = landManager.claimLand(player, selects[0], selects[1]);
             if (success) {
                 player.sendMessage("领地认领成功！");
@@ -145,6 +159,21 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             LandShowUtil.showLandBoundary(plugin, player, ranges, showDurationSeconds);
             player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。");
             return true;
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
+            player.sendMessage("§e服务器领地列表：");
+            int idx = 1;
+            for (ChunkLand land : landManager.getAllClaimedLands()) {
+                String owner = land.getOwner();
+                String ownerName = owner != null ? Bukkit.getOfflinePlayer(UUID.fromString(owner)).getName() : "未知";
+                player.sendMessage("§a[已认领] §f世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "] 主人: " + ownerName);
+                idx++;
+            }
+            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                player.sendMessage("§7[未认领] §f世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "]");
+                idx++;
+            }
+            if (idx == 1) player.sendMessage("§c暂无任何领地。");
+            return true;
         } else {
             player.sendMessage("用法: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名>");
         }
@@ -154,7 +183,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show");
+            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show", "list");
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("trust") || args[0].equalsIgnoreCase("untrust"))) {
             // 可选：返回在线玩家名补全
