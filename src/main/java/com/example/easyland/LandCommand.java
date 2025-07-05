@@ -15,7 +15,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +24,6 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandSelectListener landSelectListener;
     private final int showDurationSeconds;
     private final JavaPlugin plugin;
-    private static final String BASE_PERMISSION = "easyland.base";
     private static final String SELECT_PERMISSION = "easyland.select";
     private static final String CREATE_PERMISSION = "easyland.create";
     private static final String CLAIM_PERMISSION = "easyland.claim";
@@ -48,10 +46,6 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         Player player = (Player) sender;
-        if (!player.hasPermission(BASE_PERMISSION)) {
-            player.sendMessage("§c你没有权限使用此指令！");
-            return true;
-        }
         if (args.length == 1 && args[0].equalsIgnoreCase("select")) {
             if (!player.hasPermission(SELECT_PERMISSION)) {
                 player.sendMessage("§c你没有权限选择领地！");
@@ -150,16 +144,38 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                     player.sendMessage("认领失败，该区域无可认领的领地或已被认领。");
                 }
             }
-        } else if (args.length == 1 && args[0].equalsIgnoreCase("unclaim")) {
+        } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("unclaim")) {
             if (!player.hasPermission(UNCLAIM_PERMISSION)) {
                 player.sendMessage("§c你没有权限放弃领地！");
                 return true;
             }
-            boolean success = landManager.unclaimLand(player);
-            if (success) {
-                player.sendMessage("你已放弃领地，该区域变为无主领地。");
+            if (args.length == 2) {
+                // 通过id放弃自己已认领的领地
+                String id = args[1];
+                ChunkLand land = null;
+                for (ChunkLand l : landManager.getAllClaimedLands()) {
+                    if (id.equalsIgnoreCase(l.getId()) && player.getUniqueId().toString().equals(l.getOwner())) {
+                        land = l; break;
+                    }
+                }
+                if (land == null) {
+                    player.sendMessage("§c未找到你拥有的该ID领地。");
+                    return true;
+                }
+                boolean success = landManager.unclaimLandById(player, id);
+                if (success) {
+                    player.sendMessage("你已放弃领地，该区域变为无主领地。");
+                } else {
+                    player.sendMessage("放弃失败，操作异常。");
+                }
+                return true;
             } else {
-                player.sendMessage("你没有可放弃的领地。");
+                boolean success = landManager.unclaimLand(player);
+                if (success) {
+                    player.sendMessage("你已放弃领地，该区域变为无主领地。");
+                } else {
+                    player.sendMessage("你没有可放弃的领地。");
+                }
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("trust")) {
             if (!player.hasPermission(TRUST_PERMISSION)) {
@@ -194,6 +210,10 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("取消信任失败，你没有领地或未信任该玩家。");
             }
         } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("show")) {
+            if (!player.hasPermission("easyland.show")) {
+                player.sendMessage("§c你没有权限显示领地范围！");
+                return true;
+            }
             ChunkLand land = null;
             if (args.length == 2) {
                 String id = args[1];
@@ -231,6 +251,10 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。ID: " + land.getId());
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
+            if (!player.hasPermission("easyland.list")) {
+                player.sendMessage("§c你没有权限查看领地列表！");
+                return true;
+            }
             player.sendMessage("§e服务器领地列表：");
             int idx = 1;
             for (ChunkLand land : landManager.getAllClaimedLands()) {
@@ -273,52 +297,62 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show", "list", "remove");
+            List<String> cmds = new java.util.ArrayList<>();
+            if (sender.hasPermission(SELECT_PERMISSION)) cmds.add("select");
+            if (sender.hasPermission(CREATE_PERMISSION)) cmds.add("create");
+            if (sender.hasPermission(CLAIM_PERMISSION)) cmds.add("claim");
+            if (sender.hasPermission(UNCLAIM_PERMISSION)) cmds.add("unclaim");
+            if (sender.hasPermission(TRUST_PERMISSION)) cmds.add("trust");
+            if (sender.hasPermission(UNTRUST_PERMISSION)) cmds.add("untrust");
+            if (sender.hasPermission("easyland.show")) cmds.add("show");
+            if (sender.hasPermission("easyland.list")) cmds.add("list");
+            if (sender.hasPermission(REMOVE_PERMISSION)) cmds.add("remove");
+            String input = args[0].toLowerCase();
+            return cmds.stream().filter(cmd -> cmd.startsWith(input)).toList();
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("remove")) {
-            // remove 补全所有服务器内的领地id（含无主领地）
-            List<String> ids = new java.util.ArrayList<>();
-            for (ChunkLand land : landManager.getAllClaimedLands()) {
-                if (land.getId() != null && !land.getId().isEmpty()) {
-                    ids.add(land.getId());
-                }
-            }
-            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
-                if (land.getId() != null && !land.getId().isEmpty()) {
-                    ids.add(land.getId());
-                }
-            }
-            return ids;
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("claim")) {
-            // claim 补全所有无主领地id
-            List<String> ids = new java.util.ArrayList<>();
-            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
-                if (land.getId() != null && !land.getId().isEmpty()) {
-                    ids.add(land.getId());
-                }
-            }
-            return ids;
-        }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("trust") || args[0].equalsIgnoreCase("untrust"))) {
-            // trust/untrust 补全在线玩家名
-            List<String> names = new java.util.ArrayList<>();
-            for (org.bukkit.entity.Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
-                names.add(p.getName());
-            }
-            return names;
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("unclaim")) {
-            // unclaim 补全自己拥有的领地id
-            if (sender instanceof Player) {
-                Player player = (Player) sender;
+        if (args.length == 2) {
+            String sub = args[0].toLowerCase();
+            String input = args[1].toLowerCase();
+            if (sub.equals("remove") && sender.hasPermission(REMOVE_PERMISSION)) {
                 List<String> ids = new java.util.ArrayList<>();
                 for (ChunkLand land : landManager.getAllClaimedLands()) {
-                    if (land.getId() != null && !land.getId().isEmpty() && player.getUniqueId().toString().equals(land.getOwner())) {
-                        ids.add(land.getId());
-                    }
+                    if (land.getId() != null && !land.getId().isEmpty()) ids.add(land.getId());
                 }
-                return ids;
+                for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty()) ids.add(land.getId());
+                }
+                return ids.stream().filter(id -> id.toLowerCase().startsWith(input)).toList();
+            }
+            if (sub.equals("claim") && sender.hasPermission(CLAIM_PERMISSION)) {
+                List<String> ids = new java.util.ArrayList<>();
+                for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty()) ids.add(land.getId());
+                }
+                return ids.stream().filter(id -> id.toLowerCase().startsWith(input)).toList();
+            }
+            if (sub.equals("unclaim") && sender.hasPermission(UNCLAIM_PERMISSION) && sender instanceof Player player) {
+                List<String> ids = new java.util.ArrayList<>();
+                for (ChunkLand land : landManager.getAllClaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty() && player.getUniqueId().toString().equals(land.getOwner())) ids.add(land.getId());
+                }
+                return ids.stream().filter(id -> id.toLowerCase().startsWith(input)).toList();
+            }
+            if (sub.equals("show") && sender.hasPermission("easyland.show")) {
+                List<String> ids = new java.util.ArrayList<>();
+                for (ChunkLand land : landManager.getAllClaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty()) ids.add(land.getId());
+                }
+                for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                    if (land.getId() != null && !land.getId().isEmpty()) ids.add(land.getId());
+                }
+                return ids.stream().filter(id -> id.toLowerCase().startsWith(input)).toList();
+            }
+            if ((sub.equals("trust") && sender.hasPermission(TRUST_PERMISSION)) || (sub.equals("untrust") && sender.hasPermission(UNTRUST_PERMISSION))) {
+                List<String> names = new java.util.ArrayList<>();
+                for (org.bukkit.entity.Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
+                    names.add(p.getName());
+                }
+                return names.stream().filter(name -> name.toLowerCase().startsWith(input)).toList();
             }
         }
         return Collections.emptyList();

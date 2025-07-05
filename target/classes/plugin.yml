@@ -7,16 +7,12 @@ commands:
     description: 领地管理指令
     usage: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名>
     aliases: [el, land]
-    permission: easyland.base
     permission-message: §c你没有权限使用此指令！
 description: A PaperMC 1.21.4 plugin template.
 permissions:
-  easyland.base:
-    description: 使用 /easyland 指令的基础权限
-    default: true
   easyland.select:
     description: 使用 /easyland select 选择领地的权限
-    default: true
+    default: op
   easyland.create:
     description: 使用 /easyland create 创建无主领地的权限
     default: op
@@ -32,6 +28,15 @@ permissions:
   easyland.untrust:
     description: 使用 /easyland untrust 取消信任的权限
     default: true
+  easyland.show:
+    description: 使用 /easyland show 显示领地范围的权限
+    default: true
+  easyland.list:
+    description: 使用 /easyland list 查看领地列表的权限
+    default: true
+  easyland.remove:
+    description: 使用 /easyland remove 删除领地的权限
+    default: op
   easyland.bypass:
     description: 绕过领地保护的管理员权限
     default: op
