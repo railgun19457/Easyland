@@ -4,15 +4,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class EasylandPlugin extends JavaPlugin {
     private LandManager landManager;
+    private LandSelectListener landSelectListener;
 
     @Override
     public void onEnable() {
         getLogger().info("EasylandPlugin 已启用！");
         landManager = new LandManager();
+        landSelectListener = new LandSelectListener();
         // 注册事件监听器
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
+        getServer().getPluginManager().registerEvents(landSelectListener, this);
         // 注册 /easyland 指令（含别名）
-        this.getCommand("easyland").setExecutor(new LandCommand(landManager));
+        this.getCommand("easyland").setExecutor(new LandCommand(landManager, landSelectListener));
     }
 
     @Override
