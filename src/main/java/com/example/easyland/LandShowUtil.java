@@ -32,13 +32,18 @@ public class LandShowUtil {
                     int maxX = (Math.max(range[0], range[2]) << 4) + 15;
                     int minZ = Math.min(range[1], range[3]) << 4;
                     int maxZ = (Math.max(range[1], range[3]) << 4) + 15;
-                    for (int x = minX; x <= maxX; x++) {
-                        world.spawnParticle(finalParticle, x + 0.5, y, minZ + 0.5, 1, 0, 0, 0, 0);
-                        world.spawnParticle(finalParticle, x + 0.5, y, maxZ + 0.5, 1, 0, 0, 0, 0);
+                    // 边界线加粗，内外各扩展1格
+                    for (int x = minX - 1; x <= maxX + 1; x++) {
+                        for (int dy = 0; dy <= 2; dy++) {
+                            world.spawnParticle(finalParticle, x + 0.5, y + dy, minZ - 0.5, 2, 0.2, 0, 0.2, 0);
+                            world.spawnParticle(finalParticle, x + 0.5, y + dy, maxZ + 1.5, 2, 0.2, 0, 0.2, 0);
+                        }
                     }
-                    for (int z = minZ; z <= maxZ; z++) {
-                        world.spawnParticle(finalParticle, minX + 0.5, y, z + 0.5, 1, 0, 0, 0, 0);
-                        world.spawnParticle(finalParticle, maxX + 0.5, y, z + 0.5, 1, 0, 0, 0, 0);
+                    for (int z = minZ - 1; z <= maxZ + 1; z++) {
+                        for (int dy = 0; dy <= 2; dy++) {
+                            world.spawnParticle(finalParticle, minX - 0.5, y + dy, z + 0.5, 2, 0, 0.2, 0.2, 0);
+                            world.spawnParticle(finalParticle, maxX + 1.5, y + dy, z + 0.5, 2, 0, 0.2, 0.2, 0);
+                        }
                     }
                 }
                 ticks += 10;

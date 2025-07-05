@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Location;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +32,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     private static final String UNCLAIM_PERMISSION = "easyland.unclaim";
     private static final String TRUST_PERMISSION = "easyland.trust";
     private static final String UNTRUST_PERMISSION = "easyland.untrust";
+    private static final String REMOVE_PERMISSION = "easyland.remove";
 
     public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, int showDurationSeconds) {
         this.plugin = plugin;
@@ -71,40 +73,85 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("请先用工具右键选择两个区块。");
                 return true;
             }
-            boolean success = landManager.createLandByChunk(selects[0], selects[1]);
+            String id;
+            if (args.length == 2) {
+                id = args[1];
+                // 校验id唯一性
+                boolean exists = false;
+                for (ChunkLand land : landManager.getAllClaimedLands()) {
+                    if (id.equalsIgnoreCase(land.getId())) { exists = true; break; }
+                }
+                for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                    if (id.equalsIgnoreCase(land.getId())) { exists = true; break; }
+                }
+                if (exists) {
+                    player.sendMessage("§c该ID已被占用，请更换一个唯一ID。");
+                    return true;
+                }
+                if (id.length() > 32 || !id.matches("[a-zA-Z0-9\u4e00-\u9fa5_-]+")) {
+                    player.sendMessage("§cID不合法，仅支持中英文、数字、下划线、短横线，且不超过32字符。");
+                    return true;
+                }
+            } else if (args.length == 1) {
+                id = "land-" + System.currentTimeMillis();
+            } else {
+                player.sendMessage("用法: /easyland create <id>");
+                return true;
+            }
+            boolean success = landManager.createLandByChunk(selects[0], selects[1], id);
             if (success) {
-                player.sendMessage("无主领地已创建，可用 /easyland claim 认领。");
+                player.sendMessage("无主领地已创建，ID: " + id + "，可用 /easyland claim 认领。");
             } else {
                 player.sendMessage("该区域已存在领地。");
             }
-        } else if (args.length == 1 && args[0].equalsIgnoreCase("claim")) {
+        } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("claim")) {
             if (!player.hasPermission(CLAIM_PERMISSION)) {
                 player.sendMessage("§c你没有权限认领领地！");
                 return true;
             }
-            Chunk[] selects = landSelectListener.getPlayerSelects(player);
-            if (selects[0] == null || selects[1] == null) {
-                player.sendMessage("请先用工具右键选择两个区块。");
-                return true;
-            }
-            // 新增：判断玩家当前所处区块是否在无主领地内
-            Chunk playerChunk = player.getLocation().getChunk();
-            boolean inUnclaimed = false;
-            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
-                if (land.contains(playerChunk)) {
-                    inUnclaimed = true;
-                    break;
+            if (args.length == 2) {
+                // 通过id认领无主领地
+                String id = args[1];
+                ChunkLand land = null;
+                for (ChunkLand l : landManager.getAllUnclaimedLands()) {
+                    if (id.equalsIgnoreCase(l.getId())) { land = l; break; }
                 }
-            }
-            if (!inUnclaimed) {
-                player.sendMessage("你必须站在无主领地内才能认领！");
+                if (land == null) {
+                    player.sendMessage("§c未找到该ID的无主领地。");
+                    return true;
+                }
+                boolean success = landManager.claimLandById(player, id);
+                if (success) {
+                    player.sendMessage("领地认领成功！");
+                } else {
+                    player.sendMessage("认领失败，该领地已被认领或操作异常。");
+                }
                 return true;
-            }
-            boolean success = landManager.claimLand(player, selects[0], selects[1]);
-            if (success) {
-                player.sendMessage("领地认领成功！");
             } else {
-                player.sendMessage("认领失败，该区域无可认领的领地或已被认领。");
+                Chunk[] selects = landSelectListener.getPlayerSelects(player);
+                if (selects[0] == null || selects[1] == null) {
+                    player.sendMessage("请先用工具右键选择两个区块。");
+                    return true;
+                }
+                // 需站在无主领地内
+                Chunk playerChunk = player.getLocation().getChunk();
+                boolean inUnclaimed = false;
+                for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                    if (land.contains(playerChunk)) {
+                        inUnclaimed = true;
+                        break;
+                    }
+                }
+                if (!inUnclaimed) {
+                    player.sendMessage("你必须站在无主领地内才能认领！");
+                    return true;
+                }
+                boolean success = landManager.claimLand(player, selects[0], selects[1]);
+                if (success) {
+                    player.sendMessage("领地认领成功！");
+                } else {
+                    player.sendMessage("认领失败，该区域无可认领的领地或已被认领。");
+                }
             }
         } else if (args.length == 1 && args[0].equalsIgnoreCase("unclaim")) {
             if (!player.hasPermission(UNCLAIM_PERMISSION)) {
@@ -149,15 +196,42 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             } else {
                 player.sendMessage("取消信任失败，你没有领地或未信任该玩家。");
             }
-        } else if (args.length == 1 && args[0].equalsIgnoreCase("show")) {
-            ChunkLand land = landManager.getLand(player);
-            if (land == null) {
-                player.sendMessage("你没有已认领的领地。");
-                return true;
+        } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("show")) {
+            ChunkLand land = null;
+            if (args.length == 2) {
+                String id = args[1];
+                for (ChunkLand l : landManager.getAllClaimedLands()) {
+                    if (id.equalsIgnoreCase(l.getId())) { land = l; break; }
+                }
+                if (land == null) {
+                    for (ChunkLand l : landManager.getAllUnclaimedLands()) {
+                        if (id.equalsIgnoreCase(l.getId())) { land = l; break; }
+                    }
+                }
+                if (land == null) {
+                    player.sendMessage("§c未找到该ID的领地。");
+                    return true;
+                }
+            } else {
+                // 查找距离最近的领地（无主和已认领都可）
+                Location loc = player.getLocation();
+                double minDist = Double.MAX_VALUE;
+                for (ChunkLand l : landManager.getAllClaimedLands()) {
+                    double dist = getLandDistance(l, loc);
+                    if (dist < minDist) { minDist = dist; land = l; }
+                }
+                for (ChunkLand l : landManager.getAllUnclaimedLands()) {
+                    double dist = getLandDistance(l, loc);
+                    if (dist < minDist) { minDist = dist; land = l; }
+                }
+                if (land == null) {
+                    player.sendMessage("§c服务器暂无任何领地。");
+                    return true;
+                }
             }
             java.util.List<int[]> ranges = java.util.Collections.singletonList(new int[]{land.getMinX(), land.getMinZ(), land.getMaxX(), land.getMaxZ()});
             LandShowUtil.showLandBoundary(plugin, player, ranges, showDurationSeconds);
-            player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。");
+            player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。ID: " + land.getId());
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
             player.sendMessage("§e服务器领地列表：");
@@ -165,17 +239,36 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             for (ChunkLand land : landManager.getAllClaimedLands()) {
                 String owner = land.getOwner();
                 String ownerName = owner != null ? Bukkit.getOfflinePlayer(UUID.fromString(owner)).getName() : "未知";
-                player.sendMessage("§a[已认领] §f世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "] 主人: " + ownerName);
+                player.sendMessage("§a[已认领] §fID:" + land.getId() + " 世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "] 主人: " + ownerName);
                 idx++;
             }
             for (ChunkLand land : landManager.getAllUnclaimedLands()) {
-                player.sendMessage("§7[未认领] §f世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "]");
+                player.sendMessage("§7[未认领] §fID:" + land.getId() + " 世界:" + land.getWorldName() + " 区块范围: [" + land.getMinX() + "," + land.getMinZ() + "] ~ [" + land.getMaxX() + "," + land.getMaxZ() + "]");
                 idx++;
             }
             if (idx == 1) player.sendMessage("§c暂无任何领地。");
             return true;
+        } else if (args.length >= 1 && args[0].equalsIgnoreCase("remove")) {
+            if (!player.hasPermission(REMOVE_PERMISSION)) {
+                player.sendMessage("§c你没有权限删除领地！");
+                return true;
+            }
+            boolean success = false;
+            if (args.length == 2) {
+                // /easyland remove <id>
+                success = landManager.removeLandById(args[1]);
+            } else {
+                player.sendMessage("用法: /easyland remove <id>");
+                return true;
+            }
+            if (success) {
+                player.sendMessage("§c领地已被删除。");
+            } else {
+                player.sendMessage("§c未找到可删除的领地。");
+            }
+            return true;
         } else {
-            player.sendMessage("用法: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名>");
+            player.sendMessage("无效指令");
         }
         return true;
     }
@@ -183,12 +276,41 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show", "list");
+            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show", "list", "remove");
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("trust") || args[0].equalsIgnoreCase("untrust"))) {
-            // 可选：返回在线玩家名补全
-            return null; // 让Bukkit自动补全玩家名
+        if (args.length == 2 && args[0].equalsIgnoreCase("remove")) {
+            // remove 补全所有服务器内的领地id（含无主领地）
+            List<String> ids = new java.util.ArrayList<>();
+            for (ChunkLand land : landManager.getAllClaimedLands()) {
+                if (land.getId() != null && !land.getId().isEmpty()) {
+                    ids.add(land.getId());
+                }
+            }
+            for (ChunkLand land : landManager.getAllUnclaimedLands()) {
+                if (land.getId() != null && !land.getId().isEmpty()) {
+                    ids.add(land.getId());
+                }
+            }
+            return ids;
         }
         return Collections.emptyList();
+    }
+
+    // 工具方法：
+    private double getLandDistance(ChunkLand land, org.bukkit.Location loc) {
+        if (land == null || loc == null) return Double.MAX_VALUE;
+        if (!land.getWorldName().equals(loc.getWorld().getName())) return Double.MAX_VALUE;
+        int minX = land.getMinX();
+        int maxX = land.getMaxX();
+        int minZ = land.getMinZ();
+        int maxZ = land.getMaxZ();
+        int px = loc.getBlockX() >> 4;
+        int pz = loc.getBlockZ() >> 4;
+        int dx = 0, dz = 0;
+        if (px < minX) dx = minX - px;
+        else if (px > maxX) dx = px - maxX;
+        if (pz < minZ) dz = minZ - pz;
+        else if (pz > maxZ) dz = pz - maxZ;
+        return Math.sqrt(dx * dx + dz * dz);
     }
 }
