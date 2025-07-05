@@ -11,6 +11,7 @@ public class EasylandPlugin extends JavaPlugin {
     private int maxLandsPerPlayer;
     private int maxChunksPerLand;
     private int showDurationSeconds;
+    private boolean protectFromMobGriefing;
 
     @Override
     public void onEnable() {
@@ -20,9 +21,10 @@ public class EasylandPlugin extends JavaPlugin {
         maxLandsPerPlayer = getConfig().getInt("max-lands-per-player", 1);
         maxChunksPerLand = getConfig().getInt("max-chunks-per-land", 4);
         showDurationSeconds = getConfig().getInt("show-duration-seconds", 10);
+        protectFromMobGriefing = getConfig().getBoolean("protect-from-mob-griefing", true);
         landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
         landSelectListener = new LandSelectListener(landManager);
-        landProtectionListener = new LandProtectionListener(landManager);
+        landProtectionListener = new LandProtectionListener(landManager, protectFromMobGriefing);
         landEnterListener = new LandEnterListener(landManager);
         // 注册事件监听器
         getServer().getPluginManager().registerEvents(landSelectListener, this);

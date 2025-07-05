@@ -300,6 +300,14 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             }
             return ids;
         }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("trust") || args[0].equalsIgnoreCase("untrust"))) {
+            // trust/untrust 补全在线玩家名
+            List<String> names = new java.util.ArrayList<>();
+            for (org.bukkit.entity.Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
+                names.add(p.getName());
+            }
+            return names;
+        }
         if (args.length == 2 && args[0].equalsIgnoreCase("unclaim")) {
             // unclaim 补全自己拥有的领地id
             if (sender instanceof Player) {
