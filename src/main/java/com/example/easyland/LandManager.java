@@ -3,11 +3,86 @@ package com.example.easyland;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.configuration.file.YamlConfiguration;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public class LandManager {
     private final Map<String, ChunkLand> lands = new HashMap<>();
     private final Map<String, ChunkLand> unclaimedLands = new HashMap<>();
+    private final File dataFile;
+
+    public LandManager(File dataFile) {
+        this.dataFile = dataFile;
+        loadLands();
+    }
+
+    public void saveLands() {
+        YamlConfiguration config = new YamlConfiguration();
+        int i = 0;
+        for (ChunkLand land : lands.values()) {
+            String path = "lands." + i++;
+            config.set(path + ".owner", land.getOwner());
+            config.set(path + ".world", land.getWorldName());
+            config.set(path + ".minX", land.getMinX());
+            config.set(path + ".maxX", land.getMaxX());
+            config.set(path + ".minZ", land.getMinZ());
+            config.set(path + ".maxZ", land.getMaxZ());
+            config.set(path + ".trusted", new ArrayList<>(land.getTrusted()));
+        }
+        i = 0;
+        for (ChunkLand land : unclaimedLands.values()) {
+            String path = "unclaimed." + i++;
+            config.set(path + ".owner", land.getOwner());
+            config.set(path + ".world", land.getWorldName());
+            config.set(path + ".minX", land.getMinX());
+            config.set(path + ".maxX", land.getMaxX());
+            config.set(path + ".minZ", land.getMinZ());
+            config.set(path + ".maxZ", land.getMaxZ());
+            config.set(path + ".trusted", new ArrayList<>(land.getTrusted()));
+        }
+        try {
+            config.save(dataFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadLands() {
+        if (!dataFile.exists()) return;
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
+        lands.clear();
+        unclaimedLands.clear();
+        if (config.contains("lands")) {
+            for (String key : config.getConfigurationSection("lands").getKeys(false)) {
+                String path = "lands." + key + ".";
+                String owner = config.getString(path + "owner");
+                String world = config.getString(path + "world");
+                int minX = config.getInt(path + "minX");
+                int maxX = config.getInt(path + "maxX");
+                int minZ = config.getInt(path + "minZ");
+                int maxZ = config.getInt(path + "maxZ");
+                List<String> trusted = config.getStringList(path + "trusted");
+                ChunkLand land = new ChunkLand(owner, world, minX, maxX, minZ, maxZ, trusted);
+                lands.put(owner, land);
+            }
+        }
+        if (config.contains("unclaimed")) {
+            for (String key : config.getConfigurationSection("unclaimed").getKeys(false)) {
+                String path = "unclaimed." + key + ".";
+                String owner = config.getString(path + "owner");
+                String world = config.getString(path + "world");
+                int minX = config.getInt(path + "minX");
+                int maxX = config.getInt(path + "maxX");
+                int minZ = config.getInt(path + "minZ");
+                int maxZ = config.getInt(path + "maxZ");
+                List<String> trusted = config.getStringList(path + "trusted");
+                ChunkLand land = new ChunkLand(owner, world, minX, maxX, minZ, maxZ, trusted);
+                unclaimedLands.put(world + ":" + minX + ":" + maxX + ":" + minZ + ":" + maxZ, land);
+            }
+        }
+    }
 
     public boolean createLandByChunk(Chunk pos1, Chunk pos2) {
         String key = getChunkKey(pos1, pos2);
@@ -95,6 +170,15 @@ class ChunkLand {
         this.maxX = Math.max(pos1.getX(), pos2.getX());
         this.minZ = Math.min(pos1.getZ(), pos2.getZ());
         this.maxZ = Math.max(pos1.getZ(), pos2.getZ());
+    }
+    public ChunkLand(String owner, String worldName, int minX, int maxX, int minZ, int maxZ, List<String> trusted) {
+        this.owner = owner;
+        this.worldName = worldName;
+        this.minX = minX;
+        this.maxX = maxX;
+        this.minZ = minZ;
+        this.maxZ = maxZ;
+        if (trusted != null) this.trusted.addAll(trusted);
     }
 
     public boolean contains(Location loc) {

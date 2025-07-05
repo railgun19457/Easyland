@@ -1,6 +1,7 @@
 package com.example.easyland;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import java.io.File;
 
 public class EasylandPlugin extends JavaPlugin {
     private LandManager landManager;
@@ -11,7 +12,8 @@ public class EasylandPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         getLogger().info("EasylandPlugin 已启用！");
-        landManager = new LandManager();
+        File dataFile = new File(getDataFolder(), "lands.yml");
+        landManager = new LandManager(dataFile);
         landSelectListener = new LandSelectListener();
         landProtectionListener = new LandProtectionListener(landManager);
         landEnterListener = new LandEnterListener(landManager);
@@ -25,6 +27,7 @@ public class EasylandPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (landManager != null) landManager.saveLands();
         getLogger().info("EasylandPlugin 已禁用！");
     }
 }
