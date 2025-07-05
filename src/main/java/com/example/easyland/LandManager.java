@@ -12,9 +12,13 @@ public class LandManager {
     private final Map<String, ChunkLand> lands = new HashMap<>();
     private final Map<String, ChunkLand> unclaimedLands = new HashMap<>();
     private final File dataFile;
+    private final int maxLandsPerPlayer;
+    private final int maxChunksPerLand;
 
-    public LandManager(File dataFile) {
+    public LandManager(File dataFile, int maxLandsPerPlayer, int maxChunksPerLand) {
         this.dataFile = dataFile;
+        this.maxLandsPerPlayer = maxLandsPerPlayer;
+        this.maxChunksPerLand = maxChunksPerLand;
         loadLands();
     }
 
@@ -155,6 +159,21 @@ public class LandManager {
     private String getChunkKey(ChunkLand land) {
         return land.getWorldName() + ":" + land.getMinX() + ":" + land.getMaxX() + ":" + land.getMinZ() + ":" + land.getMaxZ();
     }
+
+    public boolean canCreateLand(Player player, Chunk pos1, Chunk pos2) {
+        // 检查玩家已拥有的领地数
+        int count = 0;
+        for (ChunkLand land : lands.values()) {
+            if (player.getUniqueId().toString().equals(land.getOwner())) count++;
+        }
+        if (count >= maxLandsPerPlayer) return false;
+        // 检查新领地区块数
+        int chunkCount = (Math.abs(pos1.getX() - pos2.getX()) + 1) * (Math.abs(pos1.getZ() - pos2.getZ()) + 1);
+        return chunkCount <= maxChunksPerLand;
+    }
+
+    public int getMaxLandsPerPlayer() { return maxLandsPerPlayer; }
+    public int getMaxChunksPerLand() { return maxChunksPerLand; }
 }
 
 class ChunkLand {
