@@ -10,11 +10,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.Component;
 
 public class LandCommand implements CommandExecutor {
     private final LandManager landManager;
     private final LandSelectListener landSelectListener;
+    private final int showDurationSeconds;
+    private final JavaPlugin plugin;
     private static final String BASE_PERMISSION = "easyland.base";
     private static final String SELECT_PERMISSION = "easyland.select";
     private static final String CREATE_PERMISSION = "easyland.create";
@@ -23,9 +26,11 @@ public class LandCommand implements CommandExecutor {
     private static final String TRUST_PERMISSION = "easyland.trust";
     private static final String UNTRUST_PERMISSION = "easyland.untrust";
 
-    public LandCommand(LandManager landManager, LandSelectListener landSelectListener) {
+    public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, int showDurationSeconds) {
+        this.plugin = plugin;
         this.landManager = landManager;
         this.landSelectListener = landSelectListener;
+        this.showDurationSeconds = showDurationSeconds;
     }
 
     @Override
@@ -125,6 +130,16 @@ public class LandCommand implements CommandExecutor {
             } else {
                 player.sendMessage("取消信任失败，你没有领地或未信任该玩家。");
             }
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("show")) {
+            ChunkLand land = landManager.getLand(player);
+            if (land == null) {
+                player.sendMessage("你没有已认领的领地。");
+                return true;
+            }
+            java.util.List<int[]> ranges = java.util.Collections.singletonList(new int[]{land.getMinX(), land.getMinZ(), land.getMaxX(), land.getMaxZ()});
+            LandShowUtil.showLandBoundary(plugin, player, ranges, showDurationSeconds);
+            player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。");
+            return true;
         } else {
             player.sendMessage("用法: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名>");
         }

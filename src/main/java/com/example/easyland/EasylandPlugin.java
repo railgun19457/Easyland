@@ -10,6 +10,7 @@ public class EasylandPlugin extends JavaPlugin {
     private LandEnterListener landEnterListener;
     private int maxLandsPerPlayer;
     private int maxChunksPerLand;
+    private int showDurationSeconds;
 
     @Override
     public void onEnable() {
@@ -18,6 +19,7 @@ public class EasylandPlugin extends JavaPlugin {
         File dataFile = new File(getDataFolder(), "lands.yml");
         maxLandsPerPlayer = getConfig().getInt("max-lands-per-player", 1);
         maxChunksPerLand = getConfig().getInt("max-chunks-per-land", 4);
+        showDurationSeconds = getConfig().getInt("show-duration-seconds", 10);
         landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
         landSelectListener = new LandSelectListener();
         landProtectionListener = new LandProtectionListener(landManager);
@@ -27,7 +29,7 @@ public class EasylandPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(landProtectionListener, this);
         getServer().getPluginManager().registerEvents(landEnterListener, this);
         // 注册 /easyland 指令（含别名）
-        this.getCommand("easyland").setExecutor(new LandCommand(landManager, landSelectListener));
+        this.getCommand("easyland").setExecutor(new LandCommand(this, landManager, landSelectListener, showDurationSeconds));
     }
 
     @Override

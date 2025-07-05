@@ -6,5 +6,5 @@ max-lands-per-player: 5
 #每个领地可包含的最大区块数量
 max-chunks-per-land: 256
 
-#每个领地范围显示的持续时间（秒）
-show-duration-seconds: 10
+#显示领地边界粒子类型（可选：FLAME、SMOKE、PORTAL、HEART等，详见Particle枚举）
+land-boundary-particle: FLAME
