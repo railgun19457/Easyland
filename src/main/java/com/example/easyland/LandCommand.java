@@ -7,13 +7,18 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.Component;
 
-public class LandCommand implements CommandExecutor {
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandManager landManager;
     private final LandSelectListener landSelectListener;
     private final int showDurationSeconds;
@@ -144,5 +149,17 @@ public class LandCommand implements CommandExecutor {
             player.sendMessage("用法: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名>");
         }
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length == 1) {
+            return Arrays.asList("select", "create", "claim", "unclaim", "trust", "untrust", "show");
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("trust") || args[0].equalsIgnoreCase("untrust"))) {
+            // 可选：返回在线玩家名补全
+            return null; // 让Bukkit自动补全玩家名
+        }
+        return Collections.emptyList();
     }
 }

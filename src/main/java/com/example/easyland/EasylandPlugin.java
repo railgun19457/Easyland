@@ -29,7 +29,9 @@ public class EasylandPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(landProtectionListener, this);
         getServer().getPluginManager().registerEvents(landEnterListener, this);
         // 注册 /easyland 指令（含别名）
-        this.getCommand("easyland").setExecutor(new LandCommand(this, landManager, landSelectListener, showDurationSeconds));
+        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener, showDurationSeconds);
+        this.getCommand("easyland").setExecutor(landCommand);
+        this.getCommand("easyland").setTabCompleter(landCommand);
     }
 
     @Override
