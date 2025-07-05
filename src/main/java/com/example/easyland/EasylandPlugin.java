@@ -6,6 +6,7 @@ public class EasylandPlugin extends JavaPlugin {
     private LandManager landManager;
     private LandSelectListener landSelectListener;
     private LandProtectionListener landProtectionListener;
+    private LandEnterListener landEnterListener;
 
     @Override
     public void onEnable() {
@@ -13,10 +14,11 @@ public class EasylandPlugin extends JavaPlugin {
         landManager = new LandManager();
         landSelectListener = new LandSelectListener();
         landProtectionListener = new LandProtectionListener(landManager);
+        landEnterListener = new LandEnterListener(landManager);
         // 注册事件监听器
-        getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
         getServer().getPluginManager().registerEvents(landSelectListener, this);
         getServer().getPluginManager().registerEvents(landProtectionListener, this);
+        getServer().getPluginManager().registerEvents(landEnterListener, this);
         // 注册 /easyland 指令（含别名）
         this.getCommand("easyland").setExecutor(new LandCommand(landManager, landSelectListener));
     }
