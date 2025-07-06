@@ -288,6 +288,28 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§c未找到可删除的领地。");
             }
             return true;
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("trustlist")) {
+            if (!player.hasPermission("easyland.trust")) {
+                player.sendMessage("§c你没有权限查看信任列表！");
+                return true;
+            }
+            ChunkLand land = landManager.getLand(player);
+            if (land == null) {
+                player.sendMessage("§c你没有已认领的领地。");
+                return true;
+            }
+            java.util.Set<String> trusted = land.getTrusted();
+            if (trusted.isEmpty()) {
+                player.sendMessage("§e你的领地当前没有信任任何玩家。");
+                return true;
+            }
+            player.sendMessage("§a你的领地信任列表：");
+            for (String uuid : trusted) {
+                org.bukkit.OfflinePlayer op = org.bukkit.Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid));
+                String name = op.getName() != null ? op.getName() : uuid;
+                player.sendMessage("§f- " + name);
+            }
+            return true;
         } else {
             player.sendMessage("无效指令");
         }
@@ -307,6 +329,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("easyland.show")) cmds.add("show");
             if (sender.hasPermission("easyland.list")) cmds.add("list");
             if (sender.hasPermission(REMOVE_PERMISSION)) cmds.add("remove");
+            if (sender.hasPermission("easyland.trust")) cmds.add("trustlist");
             String input = args[0].toLowerCase();
             return cmds.stream().filter(cmd -> cmd.startsWith(input)).toList();
         }

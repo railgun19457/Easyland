@@ -7,7 +7,7 @@ max-lands-per-player: 5
 max-chunks-per-land: 256
 
 #显示领地边界粒子类型（可选：FLAME、SMOKE、PORTAL、HEART等，详见Particle枚举）
-land-boundary-particle: FLAME
+land-boundary-particle: firework
 
 #是否保护领地内不被生物破坏（如苦力怕爆炸、末影人搬运等）
 protect-from-mob-griefing: true

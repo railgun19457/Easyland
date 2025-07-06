@@ -14,6 +14,7 @@
 | unclaim [id]         | /easyland unclaim [ID]                    | 放弃已认领领地           | easyland.unclaim     |
 | trust <玩家名>        | /easyland trust <玩家名>                   | 信任玩家进入领地         | easyland.trust       |
 | untrust <玩家名>      | /easyland untrust <玩家名>                 | 取消信任玩家             | easyland.untrust     |
+| trustlist            | /easyland trustlist                       | 查看自己领地的信任玩家列表| easyland.trust       |
 | show [id]            | /easyland show [ID]                       | 显示领地范围             | easyland.show        |
 | list                 | /easyland list                            | 查看所有领地列表         | easyland.list        |
 | remove <id>          | /easyland remove <ID>                     | 删除指定ID的领地         | easyland.remove      |
@@ -26,12 +27,12 @@
 | easyland.create   | 创建无主领地                  | op     |
 | easyland.claim    | 认领领地                      | true   |
 | easyland.unclaim  | 放弃领地                      | true   |
-| easyland.trust    | 信任他人                      | true   |
+| easyland.trust    | 信任他人、查看信任列表         | true   |
 | easyland.untrust  | 取消信任                      | true   |
 | easyland.show     | 显示领地范围                  | true   |
 | easyland.list     | 查看领地列表                  | true   |
-| easyland.remove   | 删除领地               | op     |
-| easyland.bypass   | 绕过领地保护            | op     |
+| easyland.remove   | 删除领地                      | op     |
+| easyland.bypass   | 绕过领地保护                  | op     |
 
 ## 配置项
 
@@ -47,6 +48,9 @@
 - 领地数据保存在 `plugins/Easyland/lands.yml`
 
 ### 更新日志
+#### V1.1
+- 新增 `/easyland trustlist` 指令，可查看自己领地的信任玩家列表
+
 #### V1.0
 - 实现插件基本功能 
 - 仅在paperMC1.21.4进行了测试
