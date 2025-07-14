@@ -11,6 +11,7 @@ public class EasylandPlugin extends JavaPlugin {
     private int maxLandsPerPlayer;
     private int maxChunksPerLand;
     private int showDurationSeconds;
+    private int maxShowDurationSeconds;
     private boolean protectFromMobGriefing;
 
     @Override
@@ -21,6 +22,7 @@ public class EasylandPlugin extends JavaPlugin {
         maxLandsPerPlayer = getConfig().getInt("max-lands-per-player", 1);
         maxChunksPerLand = getConfig().getInt("max-chunks-per-land", 4);
         showDurationSeconds = getConfig().getInt("show-duration-seconds", 10);
+        maxShowDurationSeconds = getConfig().getInt("max-show-duration-seconds", 300);
         protectFromMobGriefing = getConfig().getBoolean("protect-from-mob-griefing", true);
         landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
         landSelectListener = new LandSelectListener(landManager);
@@ -31,7 +33,7 @@ public class EasylandPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(landProtectionListener, this);
         getServer().getPluginManager().registerEvents(landEnterListener, this);
         // 注册 /easyland 指令（含别名）
-        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener, showDurationSeconds);
+        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener, showDurationSeconds, maxShowDurationSeconds);
         this.getCommand("easyland").setExecutor(landCommand);
         this.getCommand("easyland").setTabCompleter(landCommand);
     }

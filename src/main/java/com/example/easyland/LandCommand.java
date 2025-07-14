@@ -23,6 +23,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandManager landManager;
     private final LandSelectListener landSelectListener;
     private final int showDurationSeconds;
+    private final int maxShowDurationSeconds;
     private final JavaPlugin plugin;
     private static final String SELECT_PERMISSION = "easyland.select";
     private static final String CREATE_PERMISSION = "easyland.create";
@@ -32,11 +33,12 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     private static final String UNTRUST_PERMISSION = "easyland.untrust";
     private static final String REMOVE_PERMISSION = "easyland.remove";
 
-    public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, int showDurationSeconds) {
+    public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, int showDurationSeconds, int maxShowDurationSeconds) {
         this.plugin = plugin;
         this.landManager = landManager;
         this.landSelectListener = landSelectListener;
         this.showDurationSeconds = showDurationSeconds;
+        this.maxShowDurationSeconds = maxShowDurationSeconds;
     }
 
     @Override
@@ -182,14 +184,24 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§c你没有权限信任他人！");
                 return true;
             }
-            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
-            if (target == null || !target.hasPlayedBefore()) {
-                player.sendMessage("§c目标玩家不存在。");
+            String targetName = args[1];
+            OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
+            
+            // 检查是否是有效的玩家名（允许信任从未加入过服务器的玩家）
+            if (targetName.length() < 3 || targetName.length() > 16 || !targetName.matches("[a-zA-Z0-9_]+")) {
+                player.sendMessage("§c玩家名格式不正确！");
                 return true;
             }
+            
+            // 防止信任自己
+            if (targetName.equalsIgnoreCase(player.getName())) {
+                player.sendMessage("§c你不能信任自己！");
+                return true;
+            }
+            
             boolean success = landManager.trustPlayer(player, target.getUniqueId().toString());
             if (success) {
-                player.sendMessage("已信任玩家 " + target.getName() + "，其可在你的领地内交互。");
+                player.sendMessage("已信任玩家 " + targetName + "，其可在你的领地内交互。");
             } else {
                 player.sendMessage("信任失败，你没有领地或已信任该玩家。");
             }
@@ -198,31 +210,65 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§c你没有权限取消信任！");
                 return true;
             }
-            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
-            if (target == null || !target.hasPlayedBefore()) {
-                player.sendMessage("§c目标玩家不存在。");
+            String targetName = args[1];
+            OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
+            
+            // 检查是否是有效的玩家名
+            if (targetName.length() < 3 || targetName.length() > 16 || !targetName.matches("[a-zA-Z0-9_]+")) {
+                player.sendMessage("§c玩家名格式不正确！");
                 return true;
             }
+            
             boolean success = landManager.untrustPlayer(player, target.getUniqueId().toString());
             if (success) {
-                player.sendMessage("已取消对玩家 " + target.getName() + " 的信任。");
+                player.sendMessage("已取消对玩家 " + targetName + " 的信任。");
             } else {
                 player.sendMessage("取消信任失败，你没有领地或未信任该玩家。");
             }
-        } else if ((args.length == 1 || args.length == 2) && args[0].equalsIgnoreCase("show")) {
+        } else if ((args.length >= 1 && args.length <= 3) && args[0].equalsIgnoreCase("show")) {
             if (!player.hasPermission("easyland.show")) {
                 player.sendMessage("§c你没有权限显示领地范围！");
                 return true;
             }
+            
             ChunkLand land = null;
-            if (args.length == 2) {
-                String id = args[1];
+            int duration = showDurationSeconds; // 默认显示时间
+            
+            // 解析参数
+            String landId = null;
+            for (int i = 1; i < args.length; i++) {
+                String arg = args[i];
+                try {
+                    // 尝试解析为数字（时间）
+                    int parsedDuration = Integer.parseInt(arg);
+                    if (parsedDuration <= 0) {
+                        player.sendMessage("§c显示时间必须大于0秒！");
+                        return true;
+                    }
+                    if (parsedDuration > maxShowDurationSeconds) {
+                        player.sendMessage("§c显示时间不能超过" + maxShowDurationSeconds + "秒！");
+                        return true;
+                    }
+                    duration = parsedDuration;
+                } catch (NumberFormatException e) {
+                    // 不是数字，当作领地ID处理
+                    if (landId == null) {
+                        landId = arg;
+                    } else {
+                        player.sendMessage("§c参数错误！用法: /easyland show [领地ID] [时间(秒)]");
+                        return true;
+                    }
+                }
+            }
+            
+            // 查找领地
+            if (landId != null) {
                 for (ChunkLand l : landManager.getAllClaimedLands()) {
-                    if (id.equalsIgnoreCase(l.getId())) { land = l; break; }
+                    if (landId.equalsIgnoreCase(l.getId())) { land = l; break; }
                 }
                 if (land == null) {
                     for (ChunkLand l : landManager.getAllUnclaimedLands()) {
-                        if (id.equalsIgnoreCase(l.getId())) { land = l; break; }
+                        if (landId.equalsIgnoreCase(l.getId())) { land = l; break; }
                     }
                 }
                 if (land == null) {
@@ -246,9 +292,10 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
+            
             java.util.List<int[]> ranges = java.util.Collections.singletonList(new int[]{land.getMinX(), land.getMinZ(), land.getMaxX(), land.getMaxZ()});
-            LandShowUtil.showLandBoundary(plugin, player, ranges, showDurationSeconds);
-            player.sendMessage("§a已为你显示领地范围，持续 " + showDurationSeconds + " 秒。ID: " + land.getId());
+            LandShowUtil.showLandBoundary(plugin, player, ranges, duration);
+            player.sendMessage("§a已为你显示领地范围，持续 " + duration + " 秒。ID: " + land.getId());
             return true;
         } else if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
             if (!player.hasPermission("easyland.list")) {
@@ -370,12 +417,31 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 }
                 return ids.stream().filter(id -> id.toLowerCase().startsWith(input)).toList();
             }
-            if ((sub.equals("trust") && sender.hasPermission(TRUST_PERMISSION)) || (sub.equals("untrust") && sender.hasPermission(UNTRUST_PERMISSION))) {
+            if (sub.equals("trust") && sender.hasPermission(TRUST_PERMISSION)) {
                 List<String> names = new java.util.ArrayList<>();
                 for (org.bukkit.entity.Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
                     names.add(p.getName());
                 }
                 return names.stream().filter(name -> name.toLowerCase().startsWith(input)).toList();
+            }
+            if (sub.equals("untrust") && sender.hasPermission(UNTRUST_PERMISSION) && sender instanceof Player player) {
+                List<String> trustedNames = new java.util.ArrayList<>();
+                ChunkLand land = landManager.getLand(player);
+                if (land != null) {
+                    java.util.Set<String> trusted = land.getTrusted();
+                    for (String uuid : trusted) {
+                        try {
+                            org.bukkit.OfflinePlayer op = org.bukkit.Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid));
+                            String name = op.getName();
+                            if (name != null) {
+                                trustedNames.add(name);
+                            }
+                        } catch (IllegalArgumentException e) {
+                            // 忽略无效的UUID
+                        }
+                    }
+                }
+                return trustedNames.stream().filter(name -> name.toLowerCase().startsWith(input)).toList();
             }
         }
         return Collections.emptyList();
