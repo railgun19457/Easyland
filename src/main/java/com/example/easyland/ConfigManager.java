@@ -3,11 +3,7 @@ package com.example.easyland;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 配置文件管理器
@@ -16,6 +12,29 @@ import java.util.Set;
 public class ConfigManager {
     private final JavaPlugin plugin;
     private final Map<String, Object> standardConfig;
+    
+    // 常量定义
+    private static final String[] PROTECTION_RULES = {
+        "block-protection", "explosion-protection", "container-protection", "player-protection"
+    };
+    
+    private static final Set<String> VALID_PARTICLES = Set.of(
+        "flame", "smoke", "portal", "heart", "firework", "end_rod", 
+        "dragon_breath", "damage_indicator", "sweep_attack"
+    );
+    
+    private static final Set<String> DEPRECATED_KEYS = Set.of(
+        "protect-from-mob-griefing"
+    );
+    
+    // 配置键常量
+    private static final String KEY_MAX_LANDS = "max-lands-per-player";
+    private static final String KEY_MAX_CHUNKS = "max-chunks-per-land";
+    private static final String KEY_PARTICLE = "land-boundary-particle";
+    private static final String KEY_SHOW_DURATION = "show-duration-seconds";
+    private static final String KEY_MAX_SHOW_DURATION = "max-show-duration-seconds";
+    private static final String KEY_MESSAGE_COOLDOWN = "message-cooldown-seconds";
+    private static final String KEY_PROTECTION = "protection";
     
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -29,39 +48,33 @@ public class ConfigManager {
         Map<String, Object> config = new HashMap<>();
         
         // 基础配置
-        config.put("max-lands-per-player", 5);
-        config.put("max-chunks-per-land", 256);
-        config.put("land-boundary-particle", "firework");
-        config.put("show-duration-seconds", 10);
-        config.put("max-show-duration-seconds", 300);
-        config.put("message-cooldown-seconds", 3);
+        config.put(KEY_MAX_LANDS, 5);
+        config.put(KEY_MAX_CHUNKS, 256);
+        config.put(KEY_PARTICLE, "firework");
+        config.put(KEY_SHOW_DURATION, 10);
+        config.put(KEY_MAX_SHOW_DURATION, 300);
+        config.put(KEY_MESSAGE_COOLDOWN, 3);
         
-        // 保护规则配置 - 新结构，包含enable和default字段
-        Map<String, Object> protection = new HashMap<>();
-        
-        Map<String, Object> blockProtection = new HashMap<>();
-        blockProtection.put("enable", true);
-        blockProtection.put("default", false);
-        protection.put("block-protection", blockProtection);
-        
-        Map<String, Object> explosionProtection = new HashMap<>();
-        explosionProtection.put("enable", true);
-        explosionProtection.put("default", false);
-        protection.put("explosion-protection", explosionProtection);
-        
-        Map<String, Object> containerProtection = new HashMap<>();
-        containerProtection.put("enable", true);
-        containerProtection.put("default", false);
-        protection.put("container-protection", containerProtection);
-        
-        Map<String, Object> playerProtection = new HashMap<>();
-        playerProtection.put("enable", true);
-        playerProtection.put("default", false);
-        protection.put("player-protection", playerProtection);
-        
-        config.put("protection", protection);
+        // 保护规则配置
+        config.put(KEY_PROTECTION, createProtectionRulesConfig());
         
         return config;
+    }
+    
+    /**
+     * 创建保护规则配置
+     */
+    private Map<String, Object> createProtectionRulesConfig() {
+        Map<String, Object> protection = new HashMap<>();
+        
+        for (String ruleName : PROTECTION_RULES) {
+            Map<String, Object> rule = new HashMap<>();
+            rule.put("enable", true);
+            rule.put("default", false);
+            protection.put(ruleName, rule);
+        }
+        
+        return protection;
     }
     
     /**
@@ -96,7 +109,7 @@ public class ConfigManager {
         Set<String> currentKeys = config.getKeys(true);
         
         for (String key : currentKeys) {
-            if (!validKeys.contains(key) && !isDeprecatedConfig(key)) {
+            if (!validKeys.contains(key) && !DEPRECATED_KEYS.contains(key)) {
                 plugin.getLogger().info("删除多余的配置项: " + key);
                 config.set(key, null);
                 hasChanges = true;
@@ -112,43 +125,25 @@ public class ConfigManager {
     private Set<String> getAllValidKeys() {
         Set<String> validKeys = new HashSet<>();
         
-        for (Map.Entry<String, Object> entry : standardConfig.entrySet()) {
-            String key = entry.getKey();
-            Object value = entry.getValue();
-            
-            validKeys.add(key);
-            
-            if (value instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> section = (Map<String, Object>) value;
-                for (Map.Entry<String, Object> subEntry : section.entrySet()) {
-                    String subKey = subEntry.getKey();
-                    Object subValue = subEntry.getValue();
-                    validKeys.add(key + "." + subKey);
-                    
-                    // 处理三级嵌套（如protection.block-protection.enable）
-                    if (subValue instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> subSection = (Map<String, Object>) subValue;
-                        for (String subSubKey : subSection.keySet()) {
-                            validKeys.add(key + "." + subKey + "." + subSubKey);
-                        }
-                    }
-                }
-            }
-        }
+        collectValidKeys(standardConfig, "", validKeys);
         
         return validKeys;
     }
     
     /**
-     * 检查是否是已弃用的配置项
+     * 递归收集有效配置键
      */
-    private boolean isDeprecatedConfig(String key) {
-        Set<String> deprecatedKeys = new HashSet<>(Arrays.asList(
-            "protect-from-mob-griefing"
-        ));
-        return deprecatedKeys.contains(key);
+    private void collectValidKeys(Map<String, Object> configMap, String prefix, Set<String> validKeys) {
+        for (Map.Entry<String, Object> entry : configMap.entrySet()) {
+            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+            validKeys.add(key);
+            
+            if (entry.getValue() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> subMap = (Map<String, Object>) entry.getValue();
+                collectValidKeys(subMap, key, validKeys);
+            }
+        }
     }
     
     /**
@@ -158,11 +153,11 @@ public class ConfigManager {
         boolean hasChanges = false;
         
         // 验证数值范围
-        hasChanges |= validateIntRange(config, "max-lands-per-player", 1, 100, 5);
-        hasChanges |= validateIntRange(config, "max-chunks-per-land", 1, 10000, 256);
-        hasChanges |= validateIntRange(config, "show-duration-seconds", 1, 60, 10);
-        hasChanges |= validateIntRange(config, "max-show-duration-seconds", 10, 3600, 300);
-        hasChanges |= validateIntRange(config, "message-cooldown-seconds", 0, 60, 3);
+        hasChanges |= validateIntRange(config, KEY_MAX_LANDS, 1, 100, 5);
+        hasChanges |= validateIntRange(config, KEY_MAX_CHUNKS, 1, 10000, 256);
+        hasChanges |= validateIntRange(config, KEY_SHOW_DURATION, 1, 60, 10);
+        hasChanges |= validateIntRange(config, KEY_MAX_SHOW_DURATION, 10, 3600, 300);
+        hasChanges |= validateIntRange(config, KEY_MESSAGE_COOLDOWN, 0, 60, 3);
         
         // 验证粒子类型
         hasChanges |= validateParticleType(config);
@@ -177,7 +172,9 @@ public class ConfigManager {
         if (config.contains(key)) {
             int value = config.getInt(key);
             if (value < min || value > max) {
-                plugin.getLogger().warning("配置项 " + key + " 的值 (" + value + ") 超出有效范围 [" + min + "-" + max + "]，已重置为默认值: " + defaultValue);
+                plugin.getLogger().warning(String.format(
+                    "配置项 %s 的值 (%d) 超出有效范围 [%d-%d]，已重置为默认值: %d", 
+                    key, value, min, max, defaultValue));
                 config.set(key, defaultValue);
                 return true;
             }
@@ -189,17 +186,11 @@ public class ConfigManager {
      * 验证粒子类型
      */
     private boolean validateParticleType(FileConfiguration config) {
-        String key = "land-boundary-particle";
-        if (config.contains(key)) {
-            String particle = config.getString(key);
-            Set<String> validParticles = new HashSet<>(Arrays.asList(
-                "flame", "smoke", "portal", "heart", "firework", "end_rod", 
-                "dragon_breath", "damage_indicator", "sweep_attack"
-            ));
-            
-            if (particle != null && !validParticles.contains(particle.toLowerCase())) {
+        if (config.contains(KEY_PARTICLE)) {
+            String particle = config.getString(KEY_PARTICLE);
+            if (particle != null && !VALID_PARTICLES.contains(particle.toLowerCase())) {
                 plugin.getLogger().warning("无效的粒子类型: " + particle + "，已重置为默认值: firework");
-                config.set(key, "firework");
+                config.set(KEY_PARTICLE, "firework");
                 return true;
             }
         }
@@ -230,10 +221,9 @@ public class ConfigManager {
      */
     public Map<String, Boolean> getDefaultProtectionRules() {
         Map<String, Boolean> defaultRules = new HashMap<>();
-        String[] ruleNames = {"block-protection", "explosion-protection", "container-protection", "player-protection"};
         
-        for (String ruleName : ruleNames) {
-            boolean defaultValue = getConfigValue("protection." + ruleName + ".default", false);
+        for (String ruleName : PROTECTION_RULES) {
+            boolean defaultValue = getConfigValue(KEY_PROTECTION + "." + ruleName + ".default", false);
             defaultRules.put(ruleName, defaultValue);
         }
         
@@ -244,6 +234,13 @@ public class ConfigManager {
      * 检查保护规则是否被服务器允许启用
      */
     public boolean isProtectionRuleEnabled(String ruleName) {
-        return getConfigValue("protection." + ruleName + ".enable", true);
+        return getConfigValue(KEY_PROTECTION + "." + ruleName + ".enable", true);
+    }
+    
+    /**
+     * 获取所有保护规则名称
+     */
+    public static String[] getProtectionRules() {
+        return PROTECTION_RULES.clone();
     }
 }

@@ -18,6 +18,7 @@ import org.bukkit.Location;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.Arrays;
 
 public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandManager landManager;
@@ -376,7 +377,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             if (args.length == 1) {
                 // 显示当前领地的保护规则状态
                 player.sendMessage("§a你的领地保护规则状态：");
-                String[] ruleNames = {"block-protection", "explosion-protection", "container-protection", "player-protection"};
+                String[] ruleNames = ConfigManager.getProtectionRules();
                 String[] ruleDisplayNames = {"方块保护", "爆炸保护", "容器保护", "玩家保护"};
                 
                 for (int i = 0; i < ruleNames.length; i++) {
@@ -397,8 +398,11 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 String action = args[2].toLowerCase();
                 
                 // 验证规则名
-                if (!ruleName.matches("block-protection|explosion-protection|container-protection|player-protection")) {
-                    player.sendMessage("§c无效的保护规则！有效规则: block-protection, explosion-protection, container-protection, player-protection");
+                boolean isValidRule = Arrays.stream(ConfigManager.getProtectionRules())
+                    .anyMatch(rule -> rule.equals(ruleName));
+                
+                if (!isValidRule) {
+                    player.sendMessage("§c无效的保护规则！有效规则: " + String.join(", ", ConfigManager.getProtectionRules()));
                     return true;
                 }
                 
@@ -530,11 +534,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 return trustedNames.stream().filter(name -> name.toLowerCase().startsWith(input)).toList();
             }
             if (sub.equals("rule") && sender.hasPermission(RULE_PERMISSION)) {
-                List<String> options = new java.util.ArrayList<>();
-                options.add("block-protection");
-                options.add("explosion-protection");
-                options.add("container-protection");
-                options.add("player-protection");
+                List<String> options = Arrays.asList(ConfigManager.getProtectionRules());
                 return options.stream().filter(option -> option.toLowerCase().startsWith(input)).toList();
             }
         }
@@ -544,8 +544,8 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             String input = args[2].toLowerCase();
             
             if (sub.equals("rule") && sender.hasPermission(RULE_PERMISSION)) {
-                if (ruleName.matches("block-protection|explosion-protection|container-protection|player-protection")) {
-                    List<String> states = java.util.Arrays.asList("true", "false", "on", "off", "enable", "disable");
+                if (Arrays.asList(ConfigManager.getProtectionRules()).contains(ruleName)) {
+                    List<String> states = Arrays.asList("true", "false", "on", "off", "enable", "disable");
                     return states.stream().filter(state -> state.toLowerCase().startsWith(input)).toList();
                 }
             }
