@@ -88,7 +88,6 @@
 ## 注意事项
 
 - 插件专为 **PaperMC 1.21.4** 开发和测试
-- 配置文件修改后建议使用 `/easyland reload` 重载，避免重启服务器
 - 信任系统支持预信任功能，可以信任尚未加入服务器的玩家
 - 建议定期备份 `plugins/Easyland/lands.yml` 领地数据文件
 > 注意：插件移除了对旧配置 `protect-from-mob-griefing` 的兼容性，请使用新的 `protection.explosion-protection` 配置。
