@@ -37,6 +37,12 @@ permissions:
   easyland.remove:
     description: 使用 /easyland remove 删除领地的权限
     default: op
+  easyland.admin:
+    description: 管理员权限组，包含所有管理功能
+    default: op
+    children:
+      easyland.remove: true
+      easyland.bypass: true
   easyland.bypass:
     description: 绕过领地保护的管理员权限
     default: op

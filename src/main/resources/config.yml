@@ -15,5 +15,16 @@ show-duration-seconds: 10
 #显示领地边界的最大时间（秒）
 max-show-duration-seconds: 300
 
-#是否保护领地内不被生物破坏（如苦力怕爆炸、末影人搬运等）
-protect-from-mob-griefing: true
+#领地保护规则配置
+protection:
+  #方块保护（包含破坏、放置方块，倒桶等）
+  block-protection: true
+  #爆炸保护（保护领地不被爆炸破坏）
+  explosion-protection: true
+  #容器保护（保护箱子、熔炉等容器不被他人访问）
+  container-protection: true
+  #玩家保护（玩家在领地内不会受到伤害）
+  player-protection: false
+
+#保护提示消息冷却时间（秒，范围：0-60，设为0禁用冷却）
+message-cooldown-seconds: 3
