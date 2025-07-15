@@ -27,6 +27,7 @@
 | show [id] [时间]      | /easyland show [ID] [时间(秒)]             | 显示领地范围             | easyland.show        |
 | list                 | /easyland list                            | 查看所有领地列表         | easyland.list        |
 | remove <id>          | /easyland remove <ID>                     | 删除指定ID的领地         | easyland.remove      |
+| rule [规则名] [状态]   | /easyland rule [规则名] [on/off]           | 管理领地保护规则         | easyland.rule        |
 
 ## 权限节点
 
@@ -41,6 +42,7 @@
 | easyland.show     | 显示领地范围                  | true   |
 | easyland.list     | 查看领地列表                  | true   |
 | easyland.remove   | 删除领地                      | op     |
+| easyland.rule     | 管理领地保护规则              | true   |
 | easyland.admin    | 管理员权限组                  | op     |
 | easyland.bypass   | 绕过领地保护                  | op     |
 
@@ -97,6 +99,26 @@
 - 配置文件位于 `plugins/Easyland/config.yml`
 
 ### 更新日志
+#### V1.3
+- **革命性的领地保护系统重构**：
+  - 保护规则现在按领地独立存储，而非全局配置
+  - 新增 `rule` 指令，领主可以实时切换自己领地的保护规则
+  - 配置文件中每个保护规则新增 `enable`（服务器是否允许启用）和 `default`（新领地默认状态）字段
+  - 支持精细化的权限控制，不同领地可以有不同的保护设置
+- **新增 `/easyland rule` 指令系统**：
+  - `/easyland rule` - 查看当前领地的所有保护规则状态
+  - `/easyland rule <规则名> <on|off>` - 切换指定保护规则的启用状态
+  - 支持完整的Tab补全，包括规则名称和开关状态
+  - 新增 `easyland.rule` 权限节点
+- **配置文件结构升级**：
+  - 保护规则配置从简单布尔值升级为包含 `enable` 和 `default` 的复杂结构
+  - 向下兼容旧配置文件，自动迁移配置格式
+  - 默认所有保护规则的 `default` 为 `false`，确保不影响原版游戏体验
+- **数据存储优化**：
+  - 领地数据文件 `lands.yml` 现在包含每个领地的独立保护规则配置
+  - 自动为现有领地设置默认保护规则
+  - 改进数据加载和保存机制，支持保护规则的持久化存储
+
 #### V1.2
 - **新增配置文件管理系统**：
   - 自动验证配置值的有效性和范围
@@ -135,4 +157,4 @@
 - **开发版本**：Java 17
 - **服务端支持**：PaperMC 1.21.4
 - **API版本**：1.21
-- **当前版本**：1.2
+- **当前版本**：1.3

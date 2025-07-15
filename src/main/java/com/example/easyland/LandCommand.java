@@ -22,6 +22,7 @@ import java.util.UUID;
 public class LandCommand implements CommandExecutor, TabCompleter {
     private final LandManager landManager;
     private final LandSelectListener landSelectListener;
+    private final ConfigManager configManager;
     private final int showDurationSeconds;
     private final int maxShowDurationSeconds;
     private final JavaPlugin plugin;
@@ -32,11 +33,14 @@ public class LandCommand implements CommandExecutor, TabCompleter {
     private static final String TRUST_PERMISSION = "easyland.trust";
     private static final String UNTRUST_PERMISSION = "easyland.untrust";
     private static final String REMOVE_PERMISSION = "easyland.remove";
+    private static final String RULE_PERMISSION = "easyland.rule";
 
-    public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, int showDurationSeconds, int maxShowDurationSeconds) {
+    public LandCommand(JavaPlugin plugin, LandManager landManager, LandSelectListener landSelectListener, 
+                      ConfigManager configManager, int showDurationSeconds, int maxShowDurationSeconds) {
         this.plugin = plugin;
         this.landManager = landManager;
         this.landSelectListener = landSelectListener;
+        this.configManager = configManager;
         this.showDurationSeconds = showDurationSeconds;
         this.maxShowDurationSeconds = maxShowDurationSeconds;
     }
@@ -357,10 +361,91 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage("§f- " + name);
             }
             return true;
+        } else if (args.length >= 1 && args[0].equalsIgnoreCase("rule")) {
+            if (!player.hasPermission(RULE_PERMISSION)) {
+                player.sendMessage("§c你没有权限管理领地保护规则！");
+                return true;
+            }
+            
+            ChunkLand land = landManager.getLand(player);
+            if (land == null) {
+                player.sendMessage("§c你没有已认领的领地。");
+                return true;
+            }
+            
+            if (args.length == 1) {
+                // 显示当前领地的保护规则状态
+                player.sendMessage("§a你的领地保护规则状态：");
+                String[] ruleNames = {"block-protection", "explosion-protection", "container-protection", "player-protection"};
+                String[] ruleDisplayNames = {"方块保护", "爆炸保护", "容器保护", "玩家保护"};
+                
+                for (int i = 0; i < ruleNames.length; i++) {
+                    String ruleName = ruleNames[i];
+                    String displayName = ruleDisplayNames[i];
+                    boolean enabled = land.getProtectionRule(ruleName);
+                    boolean serverAllowed = configManager.isProtectionRuleEnabled(ruleName);
+                    
+                    String status = enabled ? "§a启用" : "§c禁用";
+                    String serverStatus = serverAllowed ? "" : " §7(服务器已禁用)";
+                    player.sendMessage("§f- " + displayName + ": " + status + serverStatus);
+                }
+                player.sendMessage("§e使用 §f/easyland rule <规则名> <on/off> §e来切换保护规则");
+                return true;
+            } else if (args.length == 3) {
+                // 切换保护规则 /easyland rule <规则名> <true/false>
+                String ruleName = args[1].toLowerCase();
+                String action = args[2].toLowerCase();
+                
+                // 验证规则名
+                if (!ruleName.matches("block-protection|explosion-protection|container-protection|player-protection")) {
+                    player.sendMessage("§c无效的保护规则！有效规则: block-protection, explosion-protection, container-protection, player-protection");
+                    return true;
+                }
+                
+                // 检查服务器是否允许此规则
+                if (!configManager.isProtectionRuleEnabled(ruleName)) {
+                    player.sendMessage("§c服务器已禁用此保护规则，无法修改！");
+                    return true;
+                }
+                
+                boolean newState;
+                if (action.equals("true") || action.equals("on") || action.equals("enable")) {
+                    newState = true;
+                } else if (action.equals("false") || action.equals("off") || action.equals("disable")) {
+                    newState = false;
+                } else {
+                    player.sendMessage("§c无效的操作！请使用: true/false, on/off, enable/disable");
+                    return true;
+                }
+                
+                land.setProtectionRule(ruleName, newState);
+                landManager.saveLands();
+                
+                String ruleDisplayName = getRuleDisplayName(ruleName);
+                String stateText = newState ? "§a启用" : "§c禁用";
+                player.sendMessage("§a已将 " + ruleDisplayName + " 设置为: " + stateText);
+                return true;
+            } else {
+                player.sendMessage("用法: /easyland rule 或 /easyland rule <规则名> <on/off>");
+                return true;
+            }
         } else {
             player.sendMessage("无效指令");
         }
         return true;
+    }
+    
+    /**
+     * 获取规则的显示名称
+     */
+    private String getRuleDisplayName(String ruleName) {
+        switch (ruleName) {
+            case "block-protection": return "方块保护";
+            case "explosion-protection": return "爆炸保护";
+            case "container-protection": return "容器保护";
+            case "player-protection": return "玩家保护";
+            default: return ruleName;
+        }
     }
 
     @Override
@@ -377,6 +462,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("easyland.list")) cmds.add("list");
             if (sender.hasPermission(REMOVE_PERMISSION)) cmds.add("remove");
             if (sender.hasPermission("easyland.trust")) cmds.add("trustlist");
+            if (sender.hasPermission(RULE_PERMISSION)) cmds.add("rule");
             String input = args[0].toLowerCase();
             return cmds.stream().filter(cmd -> cmd.startsWith(input)).toList();
         }
@@ -442,6 +528,26 @@ public class LandCommand implements CommandExecutor, TabCompleter {
                     }
                 }
                 return trustedNames.stream().filter(name -> name.toLowerCase().startsWith(input)).toList();
+            }
+            if (sub.equals("rule") && sender.hasPermission(RULE_PERMISSION)) {
+                List<String> options = new java.util.ArrayList<>();
+                options.add("block-protection");
+                options.add("explosion-protection");
+                options.add("container-protection");
+                options.add("player-protection");
+                return options.stream().filter(option -> option.toLowerCase().startsWith(input)).toList();
+            }
+        }
+        if (args.length == 3) {
+            String sub = args[0].toLowerCase();
+            String ruleName = args[1].toLowerCase();
+            String input = args[2].toLowerCase();
+            
+            if (sub.equals("rule") && sender.hasPermission(RULE_PERMISSION)) {
+                if (ruleName.matches("block-protection|explosion-protection|container-protection|player-protection")) {
+                    List<String> states = java.util.Arrays.asList("true", "false", "on", "off", "enable", "disable");
+                    return states.stream().filter(state -> state.toLowerCase().startsWith(input)).toList();
+                }
             }
         }
         return Collections.emptyList();

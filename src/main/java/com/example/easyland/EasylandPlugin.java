@@ -2,6 +2,7 @@ package com.example.easyland;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
+import java.util.Map;
 
 public class EasylandPlugin extends JavaPlugin {
     private LandManager landManager;
@@ -44,24 +45,25 @@ public class EasylandPlugin extends JavaPlugin {
         maxShowDurationSeconds = configManager.getConfigValue("max-show-duration-seconds", 300);
         int messageCooldownSeconds = configManager.getConfigValue("message-cooldown-seconds", 3);
         
-        // 读取保护规则配置 - 默认为false，确保不影响原版体验
-        enableBlockProtection = configManager.getConfigValue("protection.block-protection", false);
-        enableExplosionProtection = configManager.getConfigValue("protection.explosion-protection", false);
-        enableContainerProtection = configManager.getConfigValue("protection.container-protection", false);
-        enablePlayerProtection = configManager.getConfigValue("protection.player-protection", false);
+        // 获取默认保护规则
+        Map<String, Boolean> defaultProtectionRules = configManager.getDefaultProtectionRules();
         
-        landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
+        // 读取保护规则服务器设置（用于兼容旧的保护监听器）
+        enableBlockProtection = configManager.isProtectionRuleEnabled("block-protection");
+        enableExplosionProtection = configManager.isProtectionRuleEnabled("explosion-protection");
+        enableContainerProtection = configManager.isProtectionRuleEnabled("container-protection");
+        enablePlayerProtection = configManager.isProtectionRuleEnabled("player-protection");
+        
+        landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand, defaultProtectionRules);
         landSelectListener = new LandSelectListener(landManager);
-        landProtectionListener = new LandProtectionListener(landManager, enableBlockProtection, 
-                                                          enableExplosionProtection, enableContainerProtection, 
-                                                          enablePlayerProtection, messageCooldownSeconds);
+        landProtectionListener = new LandProtectionListener(landManager, configManager, messageCooldownSeconds);
         landEnterListener = new LandEnterListener(landManager);
         // 注册事件监听器
         getServer().getPluginManager().registerEvents(landSelectListener, this);
         getServer().getPluginManager().registerEvents(landProtectionListener, this);
         getServer().getPluginManager().registerEvents(landEnterListener, this);
         // 注册 /easyland 指令（含别名）
-        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener, showDurationSeconds, maxShowDurationSeconds);
+        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener, configManager, showDurationSeconds, maxShowDurationSeconds);
         this.getCommand("easyland").setExecutor(landCommand);
         this.getCommand("easyland").setTabCompleter(landCommand);
         

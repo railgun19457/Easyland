@@ -36,12 +36,29 @@ public class ConfigManager {
         config.put("max-show-duration-seconds", 300);
         config.put("message-cooldown-seconds", 3);
         
-        // 保护规则配置 - 默认为false，确保不影响原版体验
+        // 保护规则配置 - 新结构，包含enable和default字段
         Map<String, Object> protection = new HashMap<>();
-        protection.put("block-protection", false);
-        protection.put("explosion-protection", false);
-        protection.put("container-protection", false);
-        protection.put("player-protection", false);
+        
+        Map<String, Object> blockProtection = new HashMap<>();
+        blockProtection.put("enable", true);
+        blockProtection.put("default", false);
+        protection.put("block-protection", blockProtection);
+        
+        Map<String, Object> explosionProtection = new HashMap<>();
+        explosionProtection.put("enable", true);
+        explosionProtection.put("default", false);
+        protection.put("explosion-protection", explosionProtection);
+        
+        Map<String, Object> containerProtection = new HashMap<>();
+        containerProtection.put("enable", true);
+        containerProtection.put("default", false);
+        protection.put("container-protection", containerProtection);
+        
+        Map<String, Object> playerProtection = new HashMap<>();
+        playerProtection.put("enable", true);
+        playerProtection.put("default", false);
+        protection.put("player-protection", playerProtection);
+        
         config.put("protection", protection);
         
         return config;
@@ -104,8 +121,19 @@ public class ConfigManager {
             if (value instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> section = (Map<String, Object>) value;
-                for (String subKey : section.keySet()) {
+                for (Map.Entry<String, Object> subEntry : section.entrySet()) {
+                    String subKey = subEntry.getKey();
+                    Object subValue = subEntry.getValue();
                     validKeys.add(key + "." + subKey);
+                    
+                    // 处理三级嵌套（如protection.block-protection.enable）
+                    if (subValue instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> subSection = (Map<String, Object>) subValue;
+                        for (String subSubKey : subSection.keySet()) {
+                            validKeys.add(key + "." + subKey + "." + subSubKey);
+                        }
+                    }
                 }
             }
         }
@@ -195,5 +223,27 @@ public class ConfigManager {
             }
         }
         return defaultValue;
+    }
+    
+    /**
+     * 获取默认保护规则
+     */
+    public Map<String, Boolean> getDefaultProtectionRules() {
+        Map<String, Boolean> defaultRules = new HashMap<>();
+        String[] ruleNames = {"block-protection", "explosion-protection", "container-protection", "player-protection"};
+        
+        for (String ruleName : ruleNames) {
+            boolean defaultValue = getConfigValue("protection." + ruleName + ".default", false);
+            defaultRules.put(ruleName, defaultValue);
+        }
+        
+        return defaultRules;
+    }
+    
+    /**
+     * 检查保护规则是否被服务器允许启用
+     */
+    public boolean isProtectionRuleEnabled(String ruleName) {
+        return getConfigValue("protection." + ruleName + ".enable", true);
     }
 }

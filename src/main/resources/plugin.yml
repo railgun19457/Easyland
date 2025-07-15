@@ -1,6 +1,6 @@
 name: Easyland
 main: com.example.easyland.EasylandPlugin
-version: 1.2
+version: 1.3
 api-version: 1.21
 commands:
   easyland:
@@ -37,6 +37,9 @@ permissions:
   easyland.remove:
     description: 使用 /easyland remove 删除领地的权限
     default: op
+  easyland.rule:
+    description: 使用 /easyland rule 管理领地保护规则的权限
+    default: true
   easyland.admin:
     description: 管理员权限组，包含所有管理功能
     default: op

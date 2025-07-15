@@ -18,13 +18,21 @@ max-show-duration-seconds: 300
 #领地保护规则配置
 protection:
   #方块保护（包含破坏、放置方块，倒桶等）
-  block-protection: true
+  block-protection:
+    enable: true      # 服务器是否允许启用此规则
+    default: false    # 新领地的默认启用状态
   #爆炸保护（保护领地不被爆炸破坏）
-  explosion-protection: true
+  explosion-protection:
+    enable: true      # 服务器是否允许启用此规则
+    default: false    # 新领地的默认启用状态
   #容器保护（保护箱子、熔炉等容器不被他人访问）
-  container-protection: true
-  #玩家保护（玩家在领地内不会受到伤害）
-  player-protection: false
+  container-protection:
+    enable: true      # 服务器是否允许启用此规则
+    default: false    # 新领地的默认启用状态
+  #玩家保护（领主和受信任的玩家在领地内不会受到伤害）
+  player-protection:
+    enable: true      # 服务器是否允许启用此规则
+    default: false    # 新领地的默认启用状态
 
 #保护提示消息冷却时间（秒，范围：0-60，设为0禁用冷却）
 message-cooldown-seconds: 3

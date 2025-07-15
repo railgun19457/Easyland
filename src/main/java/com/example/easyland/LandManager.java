@@ -14,11 +14,13 @@ public class LandManager {
     private final File dataFile;
     private final int maxLandsPerPlayer;
     private final int maxChunksPerLand;
+    private final Map<String, Boolean> defaultProtectionRules;
 
-    public LandManager(File dataFile, int maxLandsPerPlayer, int maxChunksPerLand) {
+    public LandManager(File dataFile, int maxLandsPerPlayer, int maxChunksPerLand, Map<String, Boolean> defaultProtectionRules) {
         this.dataFile = dataFile;
         this.maxLandsPerPlayer = maxLandsPerPlayer;
         this.maxChunksPerLand = maxChunksPerLand;
+        this.defaultProtectionRules = defaultProtectionRules != null ? defaultProtectionRules : new HashMap<>();
         loadLands();
     }
 
@@ -35,6 +37,12 @@ public class LandManager {
             config.set(path + ".maxZ", land.getMaxZ());
             config.set(path + ".trusted", new ArrayList<>(land.getTrusted()));
             config.set(path + ".id", land.getId());
+            
+            // 保存保护规则
+            Map<String, Boolean> rules = land.getProtectionRules();
+            for (Map.Entry<String, Boolean> entry : rules.entrySet()) {
+                config.set(path + ".protection." + entry.getKey(), entry.getValue());
+            }
         }
         i = 0;
         for (ChunkLand land : unclaimedLands.values()) {
@@ -47,6 +55,12 @@ public class LandManager {
             config.set(path + ".maxZ", land.getMaxZ());
             config.set(path + ".trusted", new ArrayList<>(land.getTrusted()));
             config.set(path + ".id", land.getId());
+            
+            // 保存保护规则
+            Map<String, Boolean> rules = land.getProtectionRules();
+            for (Map.Entry<String, Boolean> entry : rules.entrySet()) {
+                config.set(path + ".protection." + entry.getKey(), entry.getValue());
+            }
         }
         try {
             config.save(dataFile);
@@ -72,6 +86,22 @@ public class LandManager {
                 List<String> trusted = config.getStringList(path + "trusted");
                 String id = config.getString(path + "id", "");
                 ChunkLand land = new ChunkLand(id, owner, world, minX, maxX, minZ, maxZ, trusted);
+                
+                // 加载保护规则
+                Map<String, Boolean> protectionRules = new HashMap<>();
+                if (config.contains(path + "protection")) {
+                    for (String ruleName : config.getConfigurationSection(path + "protection").getKeys(false)) {
+                        protectionRules.put(ruleName, config.getBoolean(path + "protection." + ruleName));
+                    }
+                }
+                // 设置默认规则（如果没有配置）
+                for (Map.Entry<String, Boolean> entry : defaultProtectionRules.entrySet()) {
+                    if (!protectionRules.containsKey(entry.getKey())) {
+                        protectionRules.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                land.setProtectionRulesFromMap(protectionRules);
+                
                 lands.put(owner, land);
             }
         }
@@ -87,6 +117,22 @@ public class LandManager {
                 List<String> trusted = config.getStringList(path + "trusted");
                 String id = config.getString(path + "id", "");
                 ChunkLand land = new ChunkLand(id, owner, world, minX, maxX, minZ, maxZ, trusted);
+                
+                // 加载保护规则
+                Map<String, Boolean> protectionRules = new HashMap<>();
+                if (config.contains(path + "protection")) {
+                    for (String ruleName : config.getConfigurationSection(path + "protection").getKeys(false)) {
+                        protectionRules.put(ruleName, config.getBoolean(path + "protection." + ruleName));
+                    }
+                }
+                // 设置默认规则（如果没有配置）
+                for (Map.Entry<String, Boolean> entry : defaultProtectionRules.entrySet()) {
+                    if (!protectionRules.containsKey(entry.getKey())) {
+                        protectionRules.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                land.setProtectionRulesFromMap(protectionRules);
+                
                 unclaimedLands.put(world + ":" + minX + ":" + maxX + ":" + minZ + ":" + maxZ, land);
             }
         }
@@ -99,7 +145,9 @@ public class LandManager {
     public boolean createLandByChunk(Chunk pos1, Chunk pos2, String id) {
         String key = getChunkKey(pos1, pos2);
         if (lands.containsKey(key) || unclaimedLands.containsKey(key)) return false;
-        unclaimedLands.put(key, new ChunkLand(id, null, pos1, pos2));
+        ChunkLand land = new ChunkLand(id, null, pos1, pos2);
+        land.setDefaultProtectionRules(defaultProtectionRules);
+        unclaimedLands.put(key, land);
         saveLands();
         return true;
     }
@@ -271,6 +319,9 @@ class ChunkLand {
     private final String worldName;
     private final int minX, maxX, minZ, maxZ;
     private final Set<String> trusted = new HashSet<>();
+    
+    // 领地保护规则设置
+    private final Map<String, Boolean> protectionRules = new HashMap<>();
 
     public ChunkLand(String id, String owner, Chunk pos1, Chunk pos2) {
         this.id = id;
@@ -280,7 +331,10 @@ class ChunkLand {
         this.maxX = Math.max(pos1.getX(), pos2.getX());
         this.minZ = Math.min(pos1.getZ(), pos2.getZ());
         this.maxZ = Math.max(pos1.getZ(), pos2.getZ());
+        // 初始化默认保护规则（将在外部设置）
+        initializeDefaultRules();
     }
+    
     public ChunkLand(String id, String owner, String worldName, int minX, int maxX, int minZ, int maxZ, List<String> trusted) {
         this.id = id;
         this.owner = owner;
@@ -290,6 +344,57 @@ class ChunkLand {
         this.minZ = minZ;
         this.maxZ = maxZ;
         if (trusted != null) this.trusted.addAll(trusted);
+        // 初始化默认保护规则（将在外部设置）
+        initializeDefaultRules();
+    }
+    
+    /**
+     * 初始化默认保护规则
+     */
+    private void initializeDefaultRules() {
+        protectionRules.put("block-protection", false);
+        protectionRules.put("explosion-protection", false);
+        protectionRules.put("container-protection", false);
+        protectionRules.put("player-protection", false);
+    }
+    
+    /**
+     * 设置保护规则的默认值
+     */
+    public void setDefaultProtectionRules(Map<String, Boolean> defaultRules) {
+        for (Map.Entry<String, Boolean> entry : defaultRules.entrySet()) {
+            protectionRules.put(entry.getKey(), entry.getValue());
+        }
+    }
+    
+    /**
+     * 获取保护规则状态
+     */
+    public boolean getProtectionRule(String ruleName) {
+        return protectionRules.getOrDefault(ruleName, false);
+    }
+    
+    /**
+     * 设置保护规则状态
+     */
+    public void setProtectionRule(String ruleName, boolean enabled) {
+        protectionRules.put(ruleName, enabled);
+    }
+    
+    /**
+     * 获取所有保护规则
+     */
+    public Map<String, Boolean> getProtectionRules() {
+        return new HashMap<>(protectionRules);
+    }
+    
+    /**
+     * 从Map设置保护规则
+     */
+    public void setProtectionRulesFromMap(Map<String, Boolean> rules) {
+        if (rules != null) {
+            protectionRules.putAll(rules);
+        }
     }
 
     public boolean contains(Location loc) {

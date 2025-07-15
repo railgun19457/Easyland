@@ -26,26 +26,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LandProtectionListener implements Listener {
     private final LandManager landManager;
+    private final ConfigManager configManager;
     private static final String BYPASS_PERMISSION = "easyland.bypass";
     
     // 消息冷却系统，防止刷屏
     private final Map<String, Long> messageCooldowns = new ConcurrentHashMap<>();
     private final long messageCooldownMs;
-    
-    // 保护规则配置
-    private final boolean enableBlockProtection;
-    private final boolean enableExplosionProtection;
-    private final boolean enableContainerProtection;
-    private final boolean enablePlayerProtection;
 
-    public LandProtectionListener(LandManager landManager, boolean enableBlockProtection, 
-                                boolean enableExplosionProtection, boolean enableContainerProtection, 
-                                boolean enablePlayerProtection, int messageCooldownSeconds) {
+    public LandProtectionListener(LandManager landManager, ConfigManager configManager, int messageCooldownSeconds) {
         this.landManager = landManager;
-        this.enableBlockProtection = enableBlockProtection;
-        this.enableExplosionProtection = enableExplosionProtection;
-        this.enableContainerProtection = enableContainerProtection;
-        this.enablePlayerProtection = enablePlayerProtection;
+        this.configManager = configManager;
         this.messageCooldownMs = messageCooldownSeconds * 1000L; // 转换为毫秒
     }
 
@@ -110,14 +100,35 @@ public class LandProtectionListener implements Listener {
         return landManager.getLandByChunk(chunk);
     }
 
+    /**
+     * 检查指定保护规则是否在该领地启用
+     */
+    private boolean isProtectionEnabled(ChunkLand land, String ruleName) {
+        // 首先检查服务器是否允许此规则
+        if (!configManager.isProtectionRuleEnabled(ruleName)) {
+            return false;
+        }
+        
+        // 如果在领地内，检查领地的规则设置
+        if (land != null) {
+            return land.getProtectionRule(ruleName);
+        }
+        
+        // 不在领地内，不需要保护
+        return false;
+    }
+
     // ================= 方块保护规则 =================
     
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockBreak(BlockBreakEvent event) {
-        if (!enableBlockProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
+        ChunkLand land = getLandAt(location);
+        
+        if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
             sendProtectionMessage(player, "§c你不能破坏他人的领地！");
@@ -127,10 +138,13 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(BlockPlaceEvent event) {
-        if (!enableBlockProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
+        ChunkLand land = getLandAt(location);
+        
+        if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
             sendProtectionMessage(player, "§c你不能在他人的领地内放置方块！");
@@ -140,10 +154,13 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
-        if (!enableBlockProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
+        ChunkLand land = getLandAt(location);
+        
+        if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
             sendProtectionMessage(player, "§c你不能在他人的领地内倒水或岩浆！");
@@ -153,10 +170,13 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onBucketFill(PlayerBucketFillEvent event) {
-        if (!enableBlockProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
+        ChunkLand land = getLandAt(location);
+        
+        if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
             sendProtectionMessage(player, "§c你不能在他人的领地内取水或岩浆！");
@@ -168,7 +188,7 @@ public class LandProtectionListener implements Listener {
     
     @EventHandler(priority = EventPriority.HIGH)
     public void onContainerInteract(PlayerInteractEvent event) {
-        if (!enableContainerProtection || event.getClickedBlock() == null) return;
+        if (event.getClickedBlock() == null) return;
         
         Player player = event.getPlayer();
         Block block = event.getClickedBlock();
@@ -178,6 +198,9 @@ public class LandProtectionListener implements Listener {
         if (!(state instanceof Container)) return;
         
         Location location = block.getLocation();
+        ChunkLand land = getLandAt(location);
+        
+        if (!isProtectionEnabled(land, "container-protection")) return;
         
         if (!hasPermission(player, location)) {
             sendProtectionMessage(player, "§c你不能与他人领地内的容器交互！");
@@ -187,13 +210,16 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!enableContainerProtection || event.isCancelled() || !(event.getPlayer() instanceof Player)) return;
+        if (event.isCancelled() || !(event.getPlayer() instanceof Player)) return;
         
         Player player = (Player) event.getPlayer();
         
         // 检查是否是方块容器
         if (event.getInventory().getLocation() != null) {
             Location location = event.getInventory().getLocation();
+            ChunkLand land = getLandAt(location);
+            
+            if (!isProtectionEnabled(land, "container-protection")) return;
             
             if (!hasPermission(player, location)) {
                 sendProtectionMessage(player, "§c你不能访问他人领地内的容器！");
@@ -206,14 +232,14 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityExplode(EntityExplodeEvent event) {
-        if (!enableExplosionProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
-        // 移除领地内的方块，防止被爆炸破坏
+        // 移除领地内启用了爆炸保护的方块，防止被爆炸破坏
         Iterator<Block> blockIterator = event.blockList().iterator();
         while (blockIterator.hasNext()) {
             Block block = blockIterator.next();
             ChunkLand land = getLandAt(block.getLocation());
-            if (land != null) {
+            if (isProtectionEnabled(land, "explosion-protection")) {
                 blockIterator.remove();
             }
         }
@@ -221,12 +247,12 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
-        if (!enableExplosionProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         Location location = event.getBlock().getLocation();
         ChunkLand land = getLandAt(location);
         
-        if (land != null) {
+        if (isProtectionEnabled(land, "explosion-protection")) {
             event.setCancelled(true);
         }
     }
@@ -235,15 +261,17 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamage(EntityDamageEvent event) {
-        if (!enablePlayerProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         if (!(event.getEntity() instanceof Player)) return;
         
         Player player = (Player) event.getEntity();
         ChunkLand land = getLandAt(player.getLocation());
         
+        if (!isProtectionEnabled(land, "player-protection")) return;
+        
         // 只保护领主或受信任的玩家
-        if (land != null && hasPermission(player, player.getLocation())) {
+        if (hasPermission(player, player.getLocation())) {
             event.setCancelled(true);
             sendProtectionMessage(player, "§a你在自己的领地内受到保护！");
         }
@@ -251,32 +279,32 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!enablePlayerProtection || event.isCancelled()) return;
+        if (event.isCancelled()) return;
         
         // 保护被攻击的玩家
         if (event.getEntity() instanceof Player) {
             Player victim = (Player) event.getEntity();
             ChunkLand land = getLandAt(victim.getLocation());
             
-            if (land != null) {
-                // 检查被攻击者是否为领主或受信任的玩家
-                boolean victimHasPermission = hasPermission(victim, victim.getLocation());
-                
-                if (victimHasPermission) {
-                    // 如果攻击者也是玩家，检查是否有权限
-                    if (event.getDamager() instanceof Player) {
-                        Player attacker = (Player) event.getDamager();
-                        if (!hasPermission(attacker, victim.getLocation())) {
-                            sendProtectionMessage(attacker, "§c你不能在他人的领地内攻击领主或受信任的玩家！");
-                            event.setCancelled(true);
-                            return;
-                        }
+            if (!isProtectionEnabled(land, "player-protection")) return;
+            
+            // 检查被攻击者是否为领主或受信任的玩家
+            boolean victimHasPermission = hasPermission(victim, victim.getLocation());
+            
+            if (victimHasPermission) {
+                // 如果攻击者也是玩家，检查是否有权限
+                if (event.getDamager() instanceof Player) {
+                    Player attacker = (Player) event.getDamager();
+                    if (!hasPermission(attacker, victim.getLocation())) {
+                        sendProtectionMessage(attacker, "§c你不能在他人的领地内攻击领主或受信任的玩家！");
+                        event.setCancelled(true);
+                        return;
                     }
-                    
-                    // 非玩家攻击，保护受信任的玩家
-                    sendProtectionMessage(victim, "§a你在领地内受到保护！");
-                    event.setCancelled(true);
                 }
+                
+                // 非玩家攻击，保护受信任的玩家
+                sendProtectionMessage(victim, "§a你在领地内受到保护！");
+                event.setCancelled(true);
             }
         }
     }
