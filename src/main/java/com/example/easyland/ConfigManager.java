@@ -36,11 +36,11 @@ public class ConfigManager {
         config.put("max-show-duration-seconds", 300);
         config.put("message-cooldown-seconds", 3);
         
-        // 保护规则配置
+        // 保护规则配置 - 默认为false，确保不影响原版体验
         Map<String, Object> protection = new HashMap<>();
-        protection.put("block-protection", true);
-        protection.put("explosion-protection", true);
-        protection.put("container-protection", true);
+        protection.put("block-protection", false);
+        protection.put("explosion-protection", false);
+        protection.put("container-protection", false);
         protection.put("player-protection", false);
         config.put("protection", protection);
         

@@ -44,10 +44,10 @@ public class EasylandPlugin extends JavaPlugin {
         maxShowDurationSeconds = configManager.getConfigValue("max-show-duration-seconds", 300);
         int messageCooldownSeconds = configManager.getConfigValue("message-cooldown-seconds", 3);
         
-        // 读取保护规则配置
-        enableBlockProtection = configManager.getConfigValue("protection.block-protection", true);
-        enableExplosionProtection = configManager.getConfigValue("protection.explosion-protection", true);
-        enableContainerProtection = configManager.getConfigValue("protection.container-protection", true);
+        // 读取保护规则配置 - 默认为false，确保不影响原版体验
+        enableBlockProtection = configManager.getConfigValue("protection.block-protection", false);
+        enableExplosionProtection = configManager.getConfigValue("protection.explosion-protection", false);
+        enableContainerProtection = configManager.getConfigValue("protection.container-protection", false);
         enablePlayerProtection = configManager.getConfigValue("protection.player-protection", false);
         
         landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand);
