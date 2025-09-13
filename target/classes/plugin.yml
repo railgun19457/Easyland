@@ -1,6 +1,6 @@
 name: Easyland
 main: com.example.easyland.EasylandPlugin
-version: 1.3
+version: 1.4
 api-version: 1.21
 commands:
   easyland:
@@ -8,7 +8,7 @@ commands:
     usage: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名> | trustlist
     aliases: [el, land]
     permission-message: §c你没有权限使用此指令！
-description: A PaperMC 1.21.4 plugin template.
+description: A PaperMC 1.21.8 plugin template.
 permissions:
   easyland.select:
     description: 使用 /easyland select 选择领地的权限

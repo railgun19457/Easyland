@@ -1,10 +1,11 @@
 # Easyland 领地管理插件
 
-![Version](https://img.shields.io/badge/version-1.3-blue)
-![Minecraft](https://img.shields.io/badge/minecraft-1.21.4-green)
-![Java](https://img.shields.io/badge/java-17-orange)
+![Version](https://img.shields.io/badge/version-1.4-blue)
+![Minecraft](https://img.shields.io/badge/minecraft-1.21.8-green)
+![Java](https://img.shields.io/badge/java-21-orange)
+![Paper](https://img.shields.io/badge/Paper-1.21.x-brightgreen)
 
-专为 PaperMC 1.21.4 开发的高性能领地管理插件，支持领地创建、权限管理和多种保护功能。
+专为 PaperMC 1.21 开发的高性能领地管理插件，支持领地创建、权限管理和多种保护功能。
 
 ## ✨ 主要功能
 
@@ -17,59 +18,59 @@
 
 主命令：`/easyland`（别名：`/el`, `/land`）
 
-| 指令 | 说明 | 权限 |
-|------|------|------|
-| `select` | 获取选择工具 | easyland.select |
-| `create [id]` | 创建领地 | easyland.create |
-| `claim [id]` | 认领领地 | easyland.claim |
-| `unclaim [id]` | 放弃领地 | easyland.unclaim |
-| `trust <玩家>` | 信任玩家 | easyland.trust |
-| `untrust <玩家>` | 取消信任 | easyland.untrust |
-| `trustlist` | 查看信任列表 | easyland.trust |
-| `show [id] [时间]` | 显示边界 | easyland.show |
-| `list` | 查看领地列表 | easyland.list |
-| `remove <id>` | 删除领地 | easyland.remove |
-| `rule [规则] [on/off]` | 管理保护规则 | easyland.rule |
+| 指令                   | 说明         | 权限             |
+| ---------------------- | ------------ | ---------------- |
+| `select`               | 获取选择工具 | easyland.select  |
+| `create [id]`          | 创建领地     | easyland.create  |
+| `claim [id]`           | 认领领地     | easyland.claim   |
+| `unclaim [id]`         | 放弃领地     | easyland.unclaim |
+| `trust <玩家>`         | 信任玩家     | easyland.trust   |
+| `untrust <玩家>`       | 取消信任     | easyland.untrust |
+| `trustlist`            | 查看信任列表 | easyland.trust   |
+| `show [id] [时间]`     | 显示边界     | easyland.show    |
+| `list`                 | 查看领地列表 | easyland.list    |
+| `remove <id>`          | 删除领地     | easyland.remove  |
+| `rule [规则] [on/off]` | 管理保护规则 | easyland.rule    |
 
 ## 🔐 权限配置
 
 ### 基础权限
-| 权限节点 | 说明 | 默认值 |
-|----------|------|--------|
-| easyland.select | 选择工具 | op |
-| easyland.create | 创建领地 | op |
-| easyland.claim | 认领领地 | true |
-| easyland.unclaim | 放弃领地 | true |
-| easyland.trust | 信任管理 | true |
-| easyland.untrust | 取消信任 | true |
-| easyland.show | 显示边界 | true |
-| easyland.list | 查看列表 | true |
-| easyland.rule | 保护规则 | true |
-| easyland.remove | 删除领地 | op |
-| easyland.admin | 管理员权限组 | op |
-| easyland.bypass | 绕过保护 | op |
+| 权限节点         | 说明         | 默认值 |
+| ---------------- | ------------ | ------ |
+| easyland.select  | 选择工具     | op     |
+| easyland.create  | 创建领地     | op     |
+| easyland.claim   | 认领领地     | true   |
+| easyland.unclaim | 放弃领地     | true   |
+| easyland.trust   | 信任管理     | true   |
+| easyland.untrust | 取消信任     | true   |
+| easyland.show    | 显示边界     | true   |
+| easyland.list    | 查看列表     | true   |
+| easyland.rule    | 保护规则     | true   |
+| easyland.remove  | 删除领地     | op     |
+| easyland.admin   | 管理员权限组 | op     |
+| easyland.bypass  | 绕过保护     | op     |
 
 ## ⚙️ 主要配置
 
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `max-lands-per-player` | 每人最大领地数 | 5 |
-| `max-chunks-per-land` | 单领地最大区块数 | 256 |
-| `show-duration-seconds` | 默认显示时间 | 10 |
-| `message-cooldown-seconds` | 消息冷却时间 | 3 |
-| `land-boundary-particle` | 边界粒子类型 | firework |
+| 配置项                     | 说明             | 默认值   |
+| -------------------------- | ---------------- | -------- |
+| `max-lands-per-player`     | 每人最大领地数   | 5        |
+| `max-chunks-per-land`      | 单领地最大区块数 | 256      |
+| `show-duration-seconds`    | 默认显示时间     | 10       |
+| `message-cooldown-seconds` | 消息冷却时间     | 3        |
+| `land-boundary-particle`   | 边界粒子类型     | firework |
 
 ### 保护规则配置
 每个保护规则都有两个设置项：
 - **enable**: 服务器是否允许启用此规则
 - **default**: 新创建领地的默认开启状态
 
-| 配置路径| 保护规则 | 功能说明  |
-|----------|----------|----------|
-| `protection.block-protection` | 方块保护 | 防止破坏/放置方块 |
-| `protection.explosion-protection` | 爆炸保护 | 防止爆炸破坏方块 |
+| 配置路径                          | 保护规则 | 功能说明           |
+| --------------------------------- | -------- | ------------------ |
+| `protection.block-protection`     | 方块保护 | 防止破坏/放置方块  |
+| `protection.explosion-protection` | 爆炸保护 | 防止爆炸破坏方块   |
 | `protection.container-protection` | 容器保护 | 防止访问箱子等容器 |
-| `protection.player-protection` | 玩家保护 | 保护玩家免受伤害 |
+| `protection.player-protection`    | 玩家保护 | 保护玩家免受伤害   |
 
 ## 📖 快速开始
 
@@ -82,14 +83,27 @@
 
 ## 📦 安装
 
-1. 下载 `easyland-1.3.jar`
+### 系统要求
+- **服务端**：Paper 1.21.x 
+- **Java**：Java 21 或更高版本
+- **兼容性**：向下兼容 Paper 1.20.4+
+
+### 安装步骤
+1. 下载 `easyland-1.4.jar`
 2. 放入 `plugins` 目录
 3. 重启服务器
 4. 配置权限节点
 
 ## 📝 更新日志
 
-### V1.3.1 (最新版)
+### V1.4 (最新版) - Paper 1.21.8 适配
+- 🚀 **版本升级**：适配 Paper 1.21.8 + Java 21
+- 🐛 **Bug修复**：修复 LandEnterListener NPE 问题
+- ⚡ **性能优化**：爆炸保护逻辑精简，减少不必要检查
+- 🛡️ **保护优化**：玩家保护不再包含摔落等自然伤害
+- 🌟 **兼容性**：向后兼容 Paper 1.20.4+
+
+### V1.3.1
 - 空间索引优化：查找性能提升 60-80%
 - 并发安全：全面使用 ConcurrentHashMap
 - 内存优化：减少 20-30% 内存使用
@@ -116,4 +130,6 @@
 
 ---
 
-💝 **感谢使用 Easyland！**
+💝 **感谢使用 Easyland！**  
+🌟 如有问题请在 GitHub 提交 Issue  
+

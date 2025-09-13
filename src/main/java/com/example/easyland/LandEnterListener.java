@@ -63,7 +63,11 @@ public class LandEnterListener implements Listener {
         }
         
         // 更新玩家当前所在领地的主人
-        lastLandOwner.put(playerId, toOwner);
+        if (toOwner != null) {
+            lastLandOwner.put(playerId, toOwner);
+        } else {
+            lastLandOwner.remove(playerId);
+        }
     }
     
     /**

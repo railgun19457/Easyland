@@ -8,4 +8,5 @@ com\example\easyland\LandShowUtil.class
 com\example\easyland\LandCommand.class
 com\example\easyland\LandEnterListener.class
 com\example\easyland\LandManager.class
+com\example\easyland\LandProtectionListener$1.class
 com\example\easyland\LandSelectListener.class

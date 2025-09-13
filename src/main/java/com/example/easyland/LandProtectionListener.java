@@ -233,7 +233,39 @@ public class LandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityExplode(EntityExplodeEvent event) {
         if (event.isCancelled()) return;
-        
+
+        // 只拦截爆炸物来源
+        org.bukkit.entity.Entity exploder = event.getEntity();
+        org.bukkit.entity.EntityType type = exploder != null ? exploder.getType() : null;
+        boolean isExplosive = false;
+        if (type != null) {
+            switch (type) {
+                case CREEPER:
+                case TNT:
+                case FIREBALL:
+                case SMALL_FIREBALL:
+                case WITHER_SKULL:
+                case DRAGON_FIREBALL:
+                    isExplosive = true;
+                    break;
+                default:
+                    // 兼容末地水晶爆炸
+                    if (exploder != null && exploder.getClass().getSimpleName().contains("EnderCrystal")) {
+                        isExplosive = true;
+                    }
+                    break;
+            }
+        }
+        // 床和重生锚爆炸没有实体，需特殊处理
+        if (type == null && event.getLocation() != null) {
+            String blockName = event.getLocation().getBlock().getType().name();
+            if (blockName.contains("BED") || blockName.contains("RESPAWN_ANCHOR")) {
+                isExplosive = true;
+            }
+        }
+
+        if (!isExplosive) return;
+
         // 移除领地内启用了爆炸保护的方块，防止被爆炸破坏
         Iterator<Block> blockIterator = event.blockList().iterator();
         while (blockIterator.hasNext()) {
@@ -248,11 +280,15 @@ public class LandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
         if (event.isCancelled()) return;
-        
         Location location = event.getBlock().getLocation();
         ChunkLand land = getLandAt(location);
-        
-        if (isProtectionEnabled(land, "explosion-protection")) {
+        if (!isProtectionEnabled(land, "explosion-protection")) return;
+
+        // 只拦截破坏性实体，允许玩家、蜜蜂、村民等友好行为
+        org.bukkit.entity.EntityType type = event.getEntity().getType();
+        if (type == org.bukkit.entity.EntityType.WITHER ||
+            type == org.bukkit.entity.EntityType.ENDERMAN ||
+            type == org.bukkit.entity.EntityType.ENDER_DRAGON) {
             event.setCancelled(true);
         }
     }
@@ -262,18 +298,30 @@ public class LandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.isCancelled()) return;
-        
         if (!(event.getEntity() instanceof Player)) return;
-        
         Player player = (Player) event.getEntity();
         ChunkLand land = getLandAt(player.getLocation());
-        
         if (!isProtectionEnabled(land, "player-protection")) return;
-        
-        // 只保护领主或受信任的玩家
-        if (hasPermission(player, player.getLocation())) {
-            event.setCancelled(true);
-            sendProtectionMessage(player, "§a你在自己的领地内受到保护！");
+
+        // 只拦截外部伤害类型
+        switch (event.getCause()) {
+            case ENTITY_ATTACK:
+            case ENTITY_SWEEP_ATTACK:
+            case PROJECTILE:
+            case MAGIC:
+            case BLOCK_EXPLOSION:
+            case ENTITY_EXPLOSION:
+            case FIRE_TICK:
+            case HOT_FLOOR:
+            case THORNS:
+                if (hasPermission(player, player.getLocation())) {
+                    event.setCancelled(true);
+                    sendProtectionMessage(player, "§a你在自己的领地内受到保护！");
+                }
+                break;
+            default:
+                // 不拦截摔落、火烧、溺水等自我伤害
+                break;
         }
     }
 

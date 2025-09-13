@@ -545,7 +545,7 @@ public class LandCommand implements CommandExecutor, TabCompleter {
             
             if (sub.equals("rule") && sender.hasPermission(RULE_PERMISSION)) {
                 if (Arrays.asList(ConfigManager.getProtectionRules()).contains(ruleName)) {
-                    List<String> states = Arrays.asList("true", "false", "on", "off", "enable", "disable");
+                    List<String> states = Arrays.asList("on", "off");
                     return states.stream().filter(state -> state.toLowerCase().startsWith(input)).toList();
                 }
             }
