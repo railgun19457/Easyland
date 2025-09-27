@@ -1,6 +1,6 @@
 name: Easyland
 main: com.example.easyland.EasylandPlugin
-version: 1.4
+version: 1.4.1
 api-version: 1.21
 commands:
   easyland:

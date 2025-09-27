@@ -118,9 +118,22 @@ public class LandProtectionListener implements Listener {
         return false;
     }
 
+    /**
+     * 清理指定位置附近的掉落物，防止VeinMiner等插件造成物品复制
+     */
+    private void clearNearbyDrops(Location location) {
+        if (location == null || location.getWorld() == null) return;
+        
+        // 清理以该位置为中心3x3x3范围内的掉落物
+        location.getWorld().getNearbyEntities(location, 2, 2, 2)
+            .stream()
+            .filter(entity -> entity instanceof org.bukkit.entity.Item)
+            .forEach(org.bukkit.entity.Entity::remove);
+    }
+
     // ================= 方块保护规则 =================
     
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.isCancelled()) return;
         
@@ -131,12 +144,21 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
-            sendProtectionMessage(player, "§c你不能破坏他人的领地！");
+            // 防止VeinMiner等插件造成的物品复制漏洞
+            // 先取消事件，防止方块被破坏
             event.setCancelled(true);
+            
+            // 清理可能已经生成的掉落物（延迟1tick确保掉落物已生成）
+            org.bukkit.Bukkit.getScheduler().runTaskLater(
+                org.bukkit.Bukkit.getPluginManager().getPlugin("Easyland"), 
+                () -> clearNearbyDrops(location), 1L
+            );
+            
+            sendProtectionMessage(player, "§c你不能破坏他人的领地！");
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockPlace(BlockPlaceEvent event) {
         if (event.isCancelled()) return;
         
@@ -147,12 +169,12 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
-            sendProtectionMessage(player, "§c你不能在他人的领地内放置方块！");
             event.setCancelled(true);
+            sendProtectionMessage(player, "§c你不能在他人的领地内放置方块！");
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         if (event.isCancelled()) return;
         
@@ -163,12 +185,12 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
-            sendProtectionMessage(player, "§c你不能在他人的领地内倒水或岩浆！");
             event.setCancelled(true);
+            sendProtectionMessage(player, "§c你不能在他人的领地内倒水或岩浆！");
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onBucketFill(PlayerBucketFillEvent event) {
         if (event.isCancelled()) return;
         
@@ -179,8 +201,8 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection")) return;
         
         if (!hasPermission(player, location)) {
-            sendProtectionMessage(player, "§c你不能在他人的领地内取水或岩浆！");
             event.setCancelled(true);
+            sendProtectionMessage(player, "§c你不能在他人的领地内取水或岩浆！");
         }
     }
 
