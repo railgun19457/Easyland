@@ -13,16 +13,17 @@ public class LandManager {
     // 使用ConcurrentHashMap提高并发性能
     private final Map<String, ChunkLand> lands = new ConcurrentHashMap<>();
     private final Map<String, ChunkLand> unclaimedLands = new ConcurrentHashMap<>();
-    
+
     // 添加空间索引以提高查找性能
     private final Map<String, Set<ChunkLand>> worldLandIndex = new ConcurrentHashMap<>();
-    
+
     private final File dataFile;
     private final int maxLandsPerPlayer;
     private final int maxChunksPerLand;
     private final Map<String, Boolean> defaultProtectionRules;
 
-    public LandManager(File dataFile, int maxLandsPerPlayer, int maxChunksPerLand, Map<String, Boolean> defaultProtectionRules) {
+    public LandManager(File dataFile, int maxLandsPerPlayer, int maxChunksPerLand,
+            Map<String, Boolean> defaultProtectionRules) {
         this.dataFile = dataFile;
         this.maxLandsPerPlayer = maxLandsPerPlayer;
         this.maxChunksPerLand = maxChunksPerLand;
@@ -36,7 +37,7 @@ public class LandManager {
     private void addToIndex(ChunkLand land) {
         worldLandIndex.computeIfAbsent(land.getWorldName(), k -> ConcurrentHashMap.newKeySet()).add(land);
     }
-    
+
     /**
      * 从空间索引移除领地
      */
@@ -52,20 +53,20 @@ public class LandManager {
 
     public void saveLands() {
         YamlConfiguration config = new YamlConfiguration();
-        
+
         // 保存已认领领地
         saveLandsToConfig(config, "lands", lands.values());
-        
+
         // 保存未认领领地
         saveLandsToConfig(config, "unclaimed", unclaimedLands.values());
-        
+
         try {
             config.save(dataFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
     /**
      * 保存领地集合到配置文件
      */
@@ -81,7 +82,7 @@ public class LandManager {
             config.set(path + ".maxZ", land.getMaxZ());
             config.set(path + ".trusted", new ArrayList<>(land.getTrusted()));
             config.set(path + ".id", land.getId());
-            
+
             // 保存保护规则
             Map<String, Boolean> rules = land.getProtectionRules();
             for (Map.Entry<String, Boolean> entry : rules.entrySet()) {
@@ -91,33 +92,35 @@ public class LandManager {
     }
 
     public void loadLands() {
-        if (!dataFile.exists()) return;
-        
+        if (!dataFile.exists())
+            return;
+
         YamlConfiguration config = YamlConfiguration.loadConfiguration(dataFile);
         lands.clear();
         unclaimedLands.clear();
         worldLandIndex.clear();
-        
+
         // 加载已认领领地
         loadLandsFromConfig(config, "lands", true);
-        
+
         // 加载未认领领地
         loadLandsFromConfig(config, "unclaimed", false);
     }
-    
+
     /**
      * 从配置文件加载领地
      */
     private void loadLandsFromConfig(YamlConfiguration config, String section, boolean isClaimed) {
-        if (!config.contains(section)) return;
-        
+        if (!config.contains(section))
+            return;
+
         for (String key : config.getConfigurationSection(section).getKeys(false)) {
             String path = section + "." + key + ".";
-            
+
             ChunkLand land = createLandFromConfig(config, path);
             if (land != null) {
                 addToIndex(land);
-                
+
                 if (isClaimed) {
                     lands.put(land.getOwner(), land);
                 } else {
@@ -127,7 +130,7 @@ public class LandManager {
             }
         }
     }
-    
+
     /**
      * 从配置创建领地对象
      */
@@ -141,9 +144,9 @@ public class LandManager {
             int maxZ = config.getInt(path + "maxZ");
             List<String> trusted = config.getStringList(path + "trusted");
             String id = config.getString(path + "id", "");
-            
+
             ChunkLand land = new ChunkLand(id, owner, world, minX, maxX, minZ, maxZ, trusted);
-            
+
             // 加载保护规则
             Map<String, Boolean> protectionRules = new HashMap<>();
             if (config.contains(path + "protection")) {
@@ -151,15 +154,15 @@ public class LandManager {
                     protectionRules.put(ruleName, config.getBoolean(path + "protection." + ruleName));
                 }
             }
-            
+
             // 设置默认规则（如果没有配置）
             for (Map.Entry<String, Boolean> entry : defaultProtectionRules.entrySet()) {
                 protectionRules.putIfAbsent(entry.getKey(), entry.getValue());
             }
-            
+
             land.setProtectionRulesFromMap(protectionRules);
             return land;
-            
+
         } catch (Exception e) {
             System.err.println("Failed to load land from config path: " + path);
             e.printStackTrace();
@@ -169,8 +172,9 @@ public class LandManager {
 
     public boolean createLandByChunk(Chunk pos1, Chunk pos2, String id) {
         String key = getChunkKey(pos1, pos2);
-        if (lands.containsKey(key) || unclaimedLands.containsKey(key)) return false;
-        
+        if (lands.containsKey(key) || unclaimedLands.containsKey(key))
+            return false;
+
         ChunkLand land = new ChunkLand(id, null, pos1, pos2);
         land.setDefaultProtectionRules(defaultProtectionRules);
         unclaimedLands.put(key, land);
@@ -186,8 +190,9 @@ public class LandManager {
     public boolean claimLand(Player player, Chunk pos1, Chunk pos2) {
         String key = getChunkKey(pos1, pos2);
         ChunkLand land = unclaimedLands.get(key);
-        if (land == null || land.getOwner() != null) return false;
-        
+        if (land == null || land.getOwner() != null)
+            return false;
+
         land.setOwner(player.getUniqueId().toString());
         lands.put(player.getUniqueId().toString(), land);
         unclaimedLands.remove(key);
@@ -197,8 +202,9 @@ public class LandManager {
 
     public boolean unclaimLand(Player player) {
         ChunkLand land = lands.remove(player.getUniqueId().toString());
-        if (land == null) return false;
-        
+        if (land == null)
+            return false;
+
         land.setOwner(null);
         String key = getChunkKey(land);
         unclaimedLands.put(key, land);
@@ -208,13 +214,15 @@ public class LandManager {
 
     public boolean trustPlayer(Player owner, String trustedUuid) {
         ChunkLand land = lands.get(owner.getUniqueId().toString());
-        if (land == null) return false;
+        if (land == null)
+            return false;
         return land.trust(trustedUuid);
     }
 
     public boolean untrustPlayer(Player owner, String trustedUuid) {
         ChunkLand land = lands.get(owner.getUniqueId().toString());
-        if (land == null) return false;
+        if (land == null)
+            return false;
         return land.untrust(trustedUuid);
     }
 
@@ -232,9 +240,10 @@ public class LandManager {
     public ChunkLand getLandByChunk(Chunk chunk) {
         String worldName = chunk.getWorld().getName();
         Set<ChunkLand> worldLands = worldLandIndex.get(worldName);
-        
-        if (worldLands == null) return null;
-        
+
+        if (worldLands == null)
+            return null;
+
         // 在该世界的领地中查找包含此区块的领地
         for (ChunkLand land : worldLands) {
             if (land.contains(chunk)) {
@@ -256,17 +265,21 @@ public class LandManager {
         int maxZ = Math.max(pos1.getZ(), pos2.getZ());
         return world + ":" + minX + ":" + maxX + ":" + minZ + ":" + maxZ;
     }
+
     private String getChunkKey(ChunkLand land) {
-        return land.getWorldName() + ":" + land.getMinX() + ":" + land.getMaxX() + ":" + land.getMinZ() + ":" + land.getMaxZ();
+        return land.getWorldName() + ":" + land.getMinX() + ":" + land.getMaxX() + ":" + land.getMinZ() + ":"
+                + land.getMaxZ();
     }
 
     public boolean canCreateLand(Player player, Chunk pos1, Chunk pos2) {
         // 检查玩家已拥有的领地数
         int count = 0;
         for (ChunkLand land : lands.values()) {
-            if (player.getUniqueId().toString().equals(land.getOwner())) count++;
+            if (player.getUniqueId().toString().equals(land.getOwner()))
+                count++;
         }
-        if (count >= maxLandsPerPlayer) return false;
+        if (count >= maxLandsPerPlayer)
+            return false;
         // 检查新领地区块数
         int chunkCount = (Math.abs(pos1.getX() - pos2.getX()) + 1) * (Math.abs(pos1.getZ() - pos2.getZ()) + 1);
         return chunkCount <= maxChunksPerLand;
@@ -280,12 +293,17 @@ public class LandManager {
         return lands.values();
     }
 
-    public int getMaxLandsPerPlayer() { return maxLandsPerPlayer; }
-    public int getMaxChunksPerLand() { return maxChunksPerLand; }
+    public int getMaxLandsPerPlayer() {
+        return maxLandsPerPlayer;
+    }
+
+    public int getMaxChunksPerLand() {
+        return maxChunksPerLand;
+    }
 
     public boolean removeLandById(String id) {
         // 从已认领领地中查找并删除
-        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, ChunkLand> entry = it.next();
             ChunkLand land = entry.getValue();
             if (land.getId() != null && land.getId().equals(id)) {
@@ -295,9 +313,9 @@ public class LandManager {
                 return true;
             }
         }
-        
+
         // 从未认领领地中查找并删除
-        for (Iterator<Map.Entry<String, ChunkLand>> it = unclaimedLands.entrySet().iterator(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, ChunkLand>> it = unclaimedLands.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, ChunkLand> entry = it.next();
             ChunkLand land = entry.getValue();
             if (land.getId() != null && land.getId().equals(id)) {
@@ -313,9 +331,9 @@ public class LandManager {
     public boolean removeLand(Player player) {
         Chunk playerChunk = player.getLocation().getChunk();
         String playerUuid = player.getUniqueId().toString();
-        
+
         // 优先删除玩家当前位置的领地
-        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, ChunkLand> entry = it.next();
             ChunkLand land = entry.getValue();
             if (playerUuid.equals(land.getOwner()) && land.contains(playerChunk)) {
@@ -325,7 +343,7 @@ public class LandManager {
                 return true;
             }
         }
-        
+
         // 如果当前位置没有领地，删除玩家的任意一个领地
         ChunkLand land = lands.remove(playerUuid);
         if (land != null) {
@@ -333,12 +351,12 @@ public class LandManager {
             saveLands();
             return true;
         }
-        
+
         return false;
     }
 
     public boolean claimLandById(Player player, String id) {
-        for (Iterator<Map.Entry<String, ChunkLand>> it = unclaimedLands.entrySet().iterator(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<String, ChunkLand>> it = unclaimedLands.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, ChunkLand> entry = it.next();
             ChunkLand land = entry.getValue();
             if (land.getId() != null && land.getId().equalsIgnoreCase(id)) {
@@ -354,8 +372,8 @@ public class LandManager {
 
     public boolean unclaimLandById(Player player, String id) {
         String playerUuid = player.getUniqueId().toString();
-        
-        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext(); ) {
+
+        for (Iterator<Map.Entry<String, ChunkLand>> it = lands.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, ChunkLand> entry = it.next();
             ChunkLand land = entry.getValue();
             if (land.getId() != null && land.getId().equalsIgnoreCase(id) && playerUuid.equals(land.getOwner())) {
@@ -377,7 +395,7 @@ class ChunkLand {
     private final String worldName;
     private final int minX, maxX, minZ, maxZ;
     private final Set<String> trusted = new HashSet<>();
-    
+
     // 领地保护规则设置
     private final Map<String, Boolean> protectionRules = new HashMap<>();
 
@@ -392,8 +410,9 @@ class ChunkLand {
         // 初始化默认保护规则（将在外部设置）
         initializeDefaultRules();
     }
-    
-    public ChunkLand(String id, String owner, String worldName, int minX, int maxX, int minZ, int maxZ, List<String> trusted) {
+
+    public ChunkLand(String id, String owner, String worldName, int minX, int maxX, int minZ, int maxZ,
+            List<String> trusted) {
         this.id = id;
         this.owner = owner;
         this.worldName = worldName;
@@ -401,11 +420,12 @@ class ChunkLand {
         this.maxX = maxX;
         this.minZ = minZ;
         this.maxZ = maxZ;
-        if (trusted != null) this.trusted.addAll(trusted);
+        if (trusted != null)
+            this.trusted.addAll(trusted);
         // 初始化默认保护规则（将在外部设置）
         initializeDefaultRules();
     }
-    
+
     /**
      * 初始化默认保护规则
      */
@@ -415,7 +435,7 @@ class ChunkLand {
         protectionRules.put("container-protection", false);
         protectionRules.put("player-protection", false);
     }
-    
+
     /**
      * 设置保护规则的默认值
      */
@@ -424,28 +444,28 @@ class ChunkLand {
             protectionRules.put(entry.getKey(), entry.getValue());
         }
     }
-    
+
     /**
      * 获取保护规则状态
      */
     public boolean getProtectionRule(String ruleName) {
         return protectionRules.getOrDefault(ruleName, false);
     }
-    
+
     /**
      * 设置保护规则状态
      */
     public void setProtectionRule(String ruleName, boolean enabled) {
         protectionRules.put(ruleName, enabled);
     }
-    
+
     /**
      * 获取所有保护规则
      */
     public Map<String, Boolean> getProtectionRules() {
         return new HashMap<>(protectionRules);
     }
-    
+
     /**
      * 从Map设置保护规则
      */
@@ -456,29 +476,66 @@ class ChunkLand {
     }
 
     public boolean contains(Location loc) {
-        if (!loc.getWorld().getName().equals(worldName)) return false;
+        if (!loc.getWorld().getName().equals(worldName))
+            return false;
         int chunkX = loc.getChunk().getX();
         int chunkZ = loc.getChunk().getZ();
         return chunkX >= minX && chunkX <= maxX && chunkZ >= minZ && chunkZ <= maxZ;
     }
 
     public boolean contains(Chunk chunk) {
-        if (!chunk.getWorld().getName().equals(worldName)) return false;
+        if (!chunk.getWorld().getName().equals(worldName))
+            return false;
         int chunkX = chunk.getX();
         int chunkZ = chunk.getZ();
         return chunkX >= minX && chunkX <= maxX && chunkZ >= minZ && chunkZ <= maxZ;
     }
 
-    public String getOwner() { return owner; }
-    public void setOwner(String owner) { this.owner = owner; }
-    public String getWorldName() { return worldName; }
-    public int getMinX() { return minX; }
-    public int getMaxX() { return maxX; }
-    public int getMinZ() { return minZ; }
-    public int getMaxZ() { return maxZ; }
-    public Set<String> getTrusted() { return trusted; }
-    public boolean trust(String uuid) { return trusted.add(uuid); }
-    public boolean untrust(String uuid) { return trusted.remove(uuid); }
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getOwner() {
+        return owner;
+    }
+
+    public void setOwner(String owner) {
+        this.owner = owner;
+    }
+
+    public String getWorldName() {
+        return worldName;
+    }
+
+    public int getMinX() {
+        return minX;
+    }
+
+    public int getMaxX() {
+        return maxX;
+    }
+
+    public int getMinZ() {
+        return minZ;
+    }
+
+    public int getMaxZ() {
+        return maxZ;
+    }
+
+    public Set<String> getTrusted() {
+        return trusted;
+    }
+
+    public boolean trust(String uuid) {
+        return trusted.add(uuid);
+    }
+
+    public boolean untrust(String uuid) {
+        return trusted.remove(uuid);
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
 }

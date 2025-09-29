@@ -1,0 +1,198 @@
+# 日本語言語ファイル
+# Easyland Plugin - Japanese (JA)
+
+# 一般メッセージ
+general:
+  only-players: "このコマンドはプレイヤーのみ使用できます。"
+  no-permission: "§cこの操作を行う権限がありません！"
+  invalid-args: "§c引数が無効です！ 使い方: %s"
+  reload-success: "§aコンフィグを再読み込みしました！"
+
+# 権限関連
+permission:
+  no-select: "§c領地を選択する権限がありません！"
+  no-create: "§c領地を作成する権限がありません！"
+  no-claim: "§c領地を取得する権限がありません！"
+  no-abandon: "§c領地を放棄する権限がありません！"
+  no-delete: "§c領地を削除する権限がありません！"
+  no-info: "§c領地情報を閲覧する権限がありません！"
+  no-list: "§c領地一覧を表示する権限がありません！"
+  no-show: "§c領地境界を表示する権限がありません！"
+  no-teleport: "§c領地へテレポートする権限がありません！" # 予約（未実装）
+  no-protection: "§c保護設定を変更する権限がありません！"
+
+# 選択ツール
+select:
+  tool-received: "領地選択ツールを受け取りました。チャンク内の任意ブロックを右クリックして選択してください。"
+  need-selection: "まずツールで2つのチャンクを選択してください。"
+  chunk-occupied: "§cこのチャンクは既に他の領地に占有されています。"
+  point-selected: "選択したチャンク: [%d, %d]"
+  tool-name: "§a領地選択"
+
+# 領地作成
+create:
+  id-taken: "§cそのIDは既に使用されています。別のIDを指定してください。"
+  invalid-id: "§c無効なIDです。英数字・アンダースコア・ハイフン (最大32文字) のみ使用できます。"
+  success: "無主領地を作成しました。ID: %s。/easyland claim で取得できます。"
+  area-occupied: "この範囲には既に領地が存在します。"
+  max-lands-reached: "§c保有できる領地数の上限(%d)に達しています！"
+  max-chunks-reached: "§cこの領地はチャンク数制限(%d)を超えています！"
+
+# 領地取得
+claim:
+  not-found: "§cそのIDの無主領地は見つかりません。"
+  success: "領地の取得に成功しました！"
+  failed: "取得に失敗しました。既に取得済みかエラーです。"
+  not-in-unclaimed: "無主領地内に立っている必要があります！"
+  no-unclaimed-here: "この場所には取得可能な無主領地がありません。"
+
+# 領地放棄
+abandon:
+  not-found: "§cそのIDの領地はあなたの所有ではありません。"
+  success: "領地を放棄しました。無主領地になりました。"
+  failed: "放棄に失敗しました。エラーです。"
+  not-owner: "§cあなたはこの領地の所有者ではありません！"
+  no-land-to-abandon: "放棄できる領地がありません。"
+
+# 領地削除（管理）
+delete:
+  not-found: "§cそのIDの領地は存在しません。"
+  success: "領地を削除しました。"
+  failed: "削除に失敗しました。エラーです。"
+  usage: "使い方: /easyland remove <id>"
+  success-msg: "§c領地は削除されました。"
+  not-found-msg: "§c削除可能な領地が見つかりません。"
+
+# 領地情報
+info:
+  header: "§6=== 領地情報 ==="
+  id: "§7ID: §f%s"
+  owner: "§7所有者: §f%s"
+  chunks: "§7チャンク数: §f%d"
+  world: "§7ワールド: §f%s"
+  created: "§7作成日時: §f%s"
+  unclaimed: "§7状態: §e無主領地"
+  protection-header: "§6保護設定:"
+  protection-enabled: "  §a✓ %s: 有効"
+  protection-disabled: "  §c✗ %s: 無効"
+  standing-on: "§aあなたは %s の領地内にいます"
+  no-land-here: "§cここには領地がありません。"
+
+# 領地一覧
+list:
+  header: "§6=== %s の領地一覧 ==="
+  empty: "§7このプレイヤーは領地を所有していません。"
+  item: "§7- §f%s §7(§e%d チャンク§7)"
+  unclaimed-header: "§6=== 無主領地一覧 ==="
+  unclaimed-empty: "§7無主領地はありません。"
+  server-list: "§eサーバー領地一覧:"
+  claimed-item: "§a[取得済] §fID:%s ワールド:%s 範囲: [%d,%d] ~ [%d,%d] 所有者: %s"
+  unclaimed-item: "§7[未取得] §fID:%s ワールド:%s 範囲: [%d,%d] ~ [%d,%d]"
+  no-lands: "§c領地は存在しません。"
+  unknown-owner: "不明"
+
+# 境界表示
+show:
+  success: "領地境界を %d 秒間表示します。"
+  invalid-duration: "§c表示時間は 1-%d 秒の間で指定してください。"
+  no-land-here: "§cここには表示できる領地がありません。"
+  no-permission: "§c境界を表示する権限がありません！"
+  duration-too-small: "§c表示時間は 0 より大きくしてください！"
+  duration-too-large: "§c表示時間は最大 %d 秒です！"
+  invalid-args: "§c引数が無効です！ 使い方: /easyland show [領地ID] [秒]"
+  land-not-found: "§cそのIDの領地は見つかりません。"
+  no-lands: "§cサーバーには領地がありません。"
+  showing: "§a領地境界を %d 秒表示中。ID: %s"
+
+# 保護（表示とメッセージ）
+protection:
+  invalid-rule: "§c無効な保護ルール: %s"
+  rule-disabled: "§cこの保護ルールはサーバーで無効です: %s"
+  not-owner: "§c保護設定を変更できるのは所有者のみです！"
+  enabled: "§a保護ルールを有効化: %s"
+  disabled: "§c保護ルールを無効化: %s"
+  rules:
+    block: "ブロック保護"
+    explosion: "爆発保護"
+    container: "コンテナ保護"
+    player: "プレイヤー保護"
+  bucket-place: "§c他人の領地で水や溶岩を置くことはできません！"
+  bucket-empty: "§c他人の領地の水や溶岩を汲むことはできません！"
+  container: "§c他人の領地のコンテナを操作できません！"
+  self-protected: "§a自分の領地内で保護されています！"
+  cannot-attack: "§cここでは所有者や信頼されたプレイヤーを攻撃できません！"
+  protected: "§aこの領地内では保護されています！"
+
+# 進入/退出
+enter:
+  message: "§a%s の領地に入りました%s"
+leave:
+  message: "§e%s の領地から出ました%s"
+
+# 保護メッセージ（レガシー）
+protection-message:
+  block: "§cここではブロックの破壊/設置はできません！"
+  explosion: "§cこの領地は爆発から保護されています！"
+  container: "§cここではコンテナを使用できません！"
+
+# 信頼システム
+trust:
+  no-permission: "§c他プレイヤーを信頼する権限がありません！"
+  invalid-name: "§cプレイヤー名の形式が正しくありません！"
+  cannot-trust-self: "§c自分自身を信頼できません！"
+  success: "プレイヤー %s を信頼しました。領地内での操作が可能です。"
+  failed: "信頼に失敗。領地が無いか既に信頼しています。"
+  untrust-no-permission: "§c信頼解除の権限がありません！"
+  untrust-success: "プレイヤー %s の信頼を解除しました。"
+  untrust-failed: "信頼解除に失敗。領地が無いか信頼していません。"
+  list-header: "§a信頼済プレイヤー一覧:"
+  list-empty: "§e信頼済プレイヤーはいません。"
+  list-no-permission: "§c信頼リストを表示する権限がありません！"
+  no-land: "§c取得済みの領地がありません。"
+
+# ルールコマンド
+rule:
+  no-permission: "§c保護ルールを管理する権限がありません！"
+  no-land: "§c取得済みの領地がありません。"
+  status-header: "§a保護ルール状態:"
+  status-enabled: "§f- %s: §a有効%s"
+  status-disabled: "§f- %s: §c無効%s"
+  server-disabled: " §7(サーバーで無効)"
+  usage-tip: "§e使用例: §f/easyland rule <ルール> <on/off> §eで切り替え"
+  invalid-rule: "§c無効な保護ルールです！ 有効: %s"
+  server-disabled-rule: "§cこのルールはサーバーで無効化されています！"
+  invalid-action: "§c無効な操作！ true/false, on/off, enable/disable を使用してください"
+  set-success: "§a%s を %s に設定しました"
+  usage: "使い方: /easyland rule または /easyland rule <ルール> <on/off>"
+
+# ヘルプ
+help:
+  header: "§6=== Easyland ヘルプ ==="
+  select: "§7/easyland select §f- 選択ツール取得"
+  create: "§7/easyland create <id> §f- 無主領地作成"
+  claim: "§7/easyland claim [id] §f- 領地取得"
+  abandon: "§7/easyland abandon <id> §f- 領地放棄"
+  delete: "§7/easyland delete <id> §f- 領地削除"
+  info: "§7/easyland info [id] §f- 領地情報"
+  list: "§7/easyland list [player] §f- 領地一覧"
+  show: "§7/easyland show [duration] §f- 境界表示"
+  protection: "§7/easyland protection <rule> <enable/disable> §f- 保護設定"
+  reload: "§7/easyland reload §f- リロード"
+
+# 領地関連
+land:
+  unknown-owner: "不明"
+  unknown-player: "不明なプレイヤー"
+  invalid-uuid: "無効なUUID"
+
+# ログメッセージ
+log:
+  plugin-enabled: "EasylandPlugin が有効化されました！"
+  plugin-disabled: "EasylandPlugin が無効化されました！"
+  config-fixed: "コンフィグファイルを自動修復しました"
+  config-check-failed: "コンフィグ検証失敗: %s"
+  protection-status: "領地保護ルール状態:"
+  protection-rule-status: "- %s: %s"
+  enabled: "有効"
+  disabled: "無効"
+  invalid-particle: "無効なパーティクル種類: %s。デフォルト FIREWORK を使用"

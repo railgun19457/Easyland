@@ -13,6 +13,12 @@ permissions:
   easyland.select:
     description: 使用 /easyland select 选择领地的权限
     default: op
+  easyland.reload:
+    description: 使用 /easyland reload 重载配置的权限
+    default: op
+  easyland.help:
+    description: 使用 /easyland help 查看帮助的权限
+    default: true
   easyland.create:
     description: 使用 /easyland create 创建无主领地的权限
     default: op
@@ -44,7 +50,18 @@ permissions:
     description: 管理员权限组，包含所有管理功能
     default: op
     children:
+      easyland.select: true
+      easyland.reload: true
+      easyland.help: true
+      easyland.create: true
+      easyland.claim: true
+      easyland.unclaim: true
+      easyland.trust: true
+      easyland.untrust: true
+      easyland.show: true
+      easyland.list: true
       easyland.remove: true
+      easyland.rule: true
       easyland.bypass: true
   easyland.bypass:
     description: 绕过领地保护的管理员权限
