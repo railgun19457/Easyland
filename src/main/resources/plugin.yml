@@ -1,6 +1,9 @@
 name: Easyland
 main: com.example.easyland.EasylandPlugin
 version: 1.4.1
+description: 一个简单的Minecraft插件，适用于paperMC ，为服务器提供领地管理
+author: Railgun19457
+website: https://github.com/railgun19457/Easyland
 api-version: 1.21
 commands:
   easyland:
