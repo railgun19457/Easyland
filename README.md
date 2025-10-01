@@ -1,5 +1,7 @@
 # Easyland 领地管理插件
 
+**语言 / Language：** [English](README.en.md) · [简体中文](README.md)
+
 ![:Easyland](https://count.getloli.com/@Easyland?name=RailgunEasyland&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
 
 ![Version](https://img.shields.io/badge/version-1.4.1-blue)
