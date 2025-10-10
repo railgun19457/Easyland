@@ -232,6 +232,23 @@ public class LandProtectionListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEndermanChangeBlock(EntityChangeBlockEvent event) {
+        if (event.isCancelled())
+            return;
+
+        if (event.getEntityType() != org.bukkit.entity.EntityType.ENDERMAN)
+            return;
+
+        Location location = event.getBlock().getLocation();
+        ChunkLand land = getLandAt(location);
+
+        if (!isProtectionEnabled(land, "block-protection"))
+            return;
+
+        event.setCancelled(true);
+    }
+
     // ================= 容器保护规则 =================
 
     @EventHandler(priority = EventPriority.HIGH)
