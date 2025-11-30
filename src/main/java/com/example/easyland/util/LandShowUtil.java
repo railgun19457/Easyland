@@ -1,4 +1,4 @@
-package com.example.easyland;
+package com.example.easyland.util;
 
 import org.bukkit.Particle;
 import org.bukkit.World;

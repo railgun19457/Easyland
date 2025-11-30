@@ -1,6 +1,9 @@
-package com.example.easyland;
+package com.example.easyland.listener;
 
-import org.bukkit.Chunk;
+import com.example.easyland.domain.Land;
+import com.example.easyland.manager.ConfigManager;
+import com.example.easyland.manager.LanguageManager;
+import com.example.easyland.service.LandService;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -22,24 +25,27 @@ import org.bukkit.block.Container;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LandProtectionListener implements Listener {
-    private final LandManager landManager;
+    private final LandService landService;
     private final ConfigManager configManager;
     private final LanguageManager languageManager;
+    private final org.bukkit.plugin.java.JavaPlugin plugin;
     private static final String BYPASS_PERMISSION = "easyland.bypass";
 
     // 消息冷却系统，防止刷屏
     private final Map<String, Long> messageCooldowns = new ConcurrentHashMap<>();
     private final long messageCooldownMs;
 
-    public LandProtectionListener(LandManager landManager, ConfigManager configManager,
-            LanguageManager languageManager, int messageCooldownSeconds) {
-        this.landManager = landManager;
+    public LandProtectionListener(LandService landService, ConfigManager configManager,
+            LanguageManager languageManager, int messageCooldownSeconds, org.bukkit.plugin.java.JavaPlugin plugin) {
+        this.landService = landService;
         this.configManager = configManager;
         this.languageManager = languageManager;
         this.messageCooldownMs = messageCooldownSeconds * 1000L; // 转换为毫秒
+        this.plugin = plugin;
     }
 
     /**
@@ -50,21 +56,22 @@ public class LandProtectionListener implements Listener {
             return true;
         }
 
-        Chunk chunk = location.getChunk();
-        ChunkLand land = landManager.getLandByChunk(chunk);
+        Optional<Land> landOpt = landService.getLandByLocation(location);
 
         // 如果不在任何领地内，允许操作
-        if (land == null) {
+        if (landOpt.isEmpty()) {
             return true;
         }
 
+        Land land = landOpt.get();
+
         // 如果是无主领地，禁止操作
-        if (land.getOwner() == null) {
+        if (!land.isClaimed()) {
             return false;
         }
 
         // 检查是否为领地主人或受信任的玩家
-        return landManager.isTrusted(land, player.getUniqueId().toString());
+        return land.isTrusted(player.getUniqueId().toString());
     }
 
     /**
@@ -113,23 +120,22 @@ public class LandProtectionListener implements Listener {
     /**
      * 获取指定位置的领地
      */
-    private ChunkLand getLandAt(Location location) {
-        Chunk chunk = location.getChunk();
-        return landManager.getLandByChunk(chunk);
+    private Optional<Land> getLandAt(Location location) {
+        return landService.getLandByLocation(location);
     }
 
     /**
      * 检查指定保护规则是否在该领地启用
      */
-    private boolean isProtectionEnabled(ChunkLand land, String ruleName) {
+    private boolean isProtectionEnabled(Optional<Land> landOpt, String ruleName) {
         // 首先检查服务器是否允许此规则
         if (!configManager.isProtectionRuleEnabled(ruleName)) {
             return false;
         }
 
         // 如果在领地内，检查领地的规则设置
-        if (land != null) {
-            return land.getProtectionRule(ruleName);
+        if (landOpt.isPresent()) {
+            return landOpt.get().getProtectionRule(ruleName);
         }
 
         // 不在领地内，不需要保护
@@ -159,7 +165,7 @@ public class LandProtectionListener implements Listener {
 
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "block-protection"))
             return;
@@ -170,8 +176,7 @@ public class LandProtectionListener implements Listener {
             event.setCancelled(true);
 
             // 清理可能已经生成的掉落物（延迟1tick确保掉落物已生成）
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                    org.bukkit.Bukkit.getPluginManager().getPlugin("Easyland"),
+            org.bukkit.Bukkit.getScheduler().runTaskLater(plugin,
                     () -> clearNearbyDrops(location), 1L);
 
             sendLocalizedProtectionMessage(player, "protection-message.block");
@@ -185,7 +190,7 @@ public class LandProtectionListener implements Listener {
 
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "block-protection"))
             return;
@@ -203,7 +208,7 @@ public class LandProtectionListener implements Listener {
 
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "block-protection"))
             return;
@@ -221,7 +226,7 @@ public class LandProtectionListener implements Listener {
 
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "block-protection"))
             return;
@@ -241,7 +246,7 @@ public class LandProtectionListener implements Listener {
             return;
 
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "block-protection"))
             return;
@@ -265,7 +270,7 @@ public class LandProtectionListener implements Listener {
             return;
 
         Location location = block.getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
 
         if (!isProtectionEnabled(land, "container-protection"))
             return;
@@ -286,7 +291,7 @@ public class LandProtectionListener implements Listener {
         // 检查是否是方块容器
         if (event.getInventory().getLocation() != null) {
             Location location = event.getInventory().getLocation();
-            ChunkLand land = getLandAt(location);
+            Optional<Land> land = getLandAt(location);
 
             if (!isProtectionEnabled(land, "container-protection"))
                 return;
@@ -342,7 +347,7 @@ public class LandProtectionListener implements Listener {
         Iterator<Block> blockIterator = event.blockList().iterator();
         while (blockIterator.hasNext()) {
             Block block = blockIterator.next();
-            ChunkLand land = getLandAt(block.getLocation());
+            Optional<Land> land = getLandAt(block.getLocation());
             if (isProtectionEnabled(land, "explosion-protection")) {
                 blockIterator.remove();
             }
@@ -354,7 +359,7 @@ public class LandProtectionListener implements Listener {
         if (event.isCancelled())
             return;
         Location location = event.getBlock().getLocation();
-        ChunkLand land = getLandAt(location);
+        Optional<Land> land = getLandAt(location);
         if (!isProtectionEnabled(land, "explosion-protection"))
             return;
 
@@ -376,7 +381,7 @@ public class LandProtectionListener implements Listener {
         if (!(event.getEntity() instanceof Player))
             return;
         Player player = (Player) event.getEntity();
-        ChunkLand land = getLandAt(player.getLocation());
+        Optional<Land> land = getLandAt(player.getLocation());
         if (!isProtectionEnabled(land, "player-protection"))
             return;
 
@@ -410,7 +415,7 @@ public class LandProtectionListener implements Listener {
         // 保护被攻击的玩家
         if (event.getEntity() instanceof Player) {
             Player victim = (Player) event.getEntity();
-            ChunkLand land = getLandAt(victim.getLocation());
+            Optional<Land> land = getLandAt(victim.getLocation());
 
             if (!isProtectionEnabled(land, "player-protection"))
                 return;

@@ -1,12 +1,33 @@
 package com.example.easyland;
 
+import com.example.easyland.command.LandCommandManager;
+import com.example.easyland.listener.LandEnterListener;
+import com.example.easyland.listener.LandProtectionListener;
+import com.example.easyland.listener.LandSelectListener;
+import com.example.easyland.manager.ConfigManager;
+import com.example.easyland.manager.LanguageManager;
+import com.example.easyland.migration.DataMigration;
+import com.example.easyland.repository.LandRepository;
+import com.example.easyland.repository.SqliteLandRepository;
+import com.example.easyland.service.LandService;
+import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class EasylandPlugin extends JavaPlugin {
-    private LandManager landManager;
     private ConfigManager configManager;
     private LanguageManager languageManager;
+
+    // 新架构组件
+    private LandRepository landRepository;
+    private LandService landService;
+
+    // 选区存储（用于命令和监听器）- 使用世界坐标
+    private final Map<UUID, Location[]> selections = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -17,25 +38,24 @@ public class EasylandPlugin extends JavaPlugin {
         try {
             boolean hasChanges = configManager.checkAndFixConfig();
             if (hasChanges) {
-                getLogger().info("Config file automatically fixed"); // 临时使用英文，后续会改为语言管理器
+                getLogger().info("Config file automatically fixed");
             }
         } catch (Exception e) {
-            getLogger().severe("Config check failed: " + e.getMessage()); // 临时使用英文
+            getLogger().severe("Config check failed: " + e.getMessage());
             e.printStackTrace();
         }
 
         // 初始化语言管理器
         languageManager = new LanguageManager(this);
-
         getLogger().info(languageManager.getMessage("log.plugin-enabled"));
 
-        // 初始化管理器
-        initializeManagers();
+        // 初始化新架构的数据层和服务层
+        initializeNewArchitecture();
 
         // 注册事件监听器
         registerEventListeners();
 
-        // 注册指令
+        // 注册指令（使用新的命令管理器）
         registerCommands();
 
         // 输出保护规则状态
@@ -44,58 +64,125 @@ public class EasylandPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (landManager != null) {
-            landManager.saveLands();
+        if (landRepository != null) {
+            landRepository.close();
         }
         getLogger().info(languageManager.getMessage("log.plugin-disabled"));
     }
 
     /**
-     * 初始化管理器
+     * 初始化新架构（Repository + Service）
      */
-    private void initializeManagers() {
-        File dataFile = new File(getDataFolder(), "lands.yml");
+    private void initializeNewArchitecture() {
+        File dataFolder = getDataFolder();
+        File yamlFile = new File(dataFolder, "lands.yml");
+        File sqliteFile = new File(dataFolder, "lands.db");
 
-        // 使用配置管理器获取配置值
+        // 检查是否需要数据迁移
+        DataMigration migration = new DataMigration(getLogger());
+        if (migration.needsMigration(yamlFile, sqliteFile)) {
+            getLogger().info("========================================");
+            getLogger().info("检测到旧的 YAML 数据格式");
+            getLogger().info("开始迁移到 SQLite 数据库...");
+            getLogger().info("========================================");
+
+            DataMigration.MigrationResult result = migration.migrateFromYamlToSqlite(yamlFile, sqliteFile);
+
+            if (result.isSuccess()) {
+                getLogger().info("========================================");
+                getLogger().info("数据迁移成功完成！");
+                getLogger().info("已迁移 " + result.getSuccessCount() + " 个领地到 SQLite");
+                getLogger().info("原 YAML 文件已备份为 lands.yml.backup");
+                getLogger().info("========================================");
+            } else {
+                getLogger().warning("========================================");
+                getLogger().warning("数据迁移失败: " + result.getMessage());
+                getLogger().warning("插件将继续使用 SQLite，但数据可能不完整");
+                getLogger().warning("========================================");
+            }
+        }
+
+        // 初始化 SQLite Repository
+        landRepository = new SqliteLandRepository(sqliteFile);
+        landRepository.initialize();
+        getLogger().info("SQLite 数据库已初始化: " + sqliteFile.getAbsolutePath());
+
+        // 检查并执行坐标系统迁移
+        com.example.easyland.migration.CoordinateMigration coordMigration =
+            new com.example.easyland.migration.CoordinateMigration(getLogger());
+        if (coordMigration.needsMigration(sqliteFile)) {
+            getLogger().info("========================================");
+            getLogger().info("检测到旧的区块坐标格式");
+            getLogger().info("开始迁移到世界坐标系统...");
+            getLogger().info("========================================");
+
+            com.example.easyland.migration.CoordinateMigration.MigrationResult coordResult =
+                coordMigration.migrate(sqliteFile);
+
+            if (coordResult.isSuccess()) {
+                getLogger().info("========================================");
+                getLogger().info("坐标系统迁移成功完成！");
+                getLogger().info("已验证 " + coordResult.getMigratedCount() + " 个领地的坐标数据");
+                getLogger().info("========================================");
+            } else {
+                getLogger().warning("========================================");
+                getLogger().warning("坐标系统迁移失败: " + coordResult.getMessage());
+                getLogger().warning("插件将继续运行，但可能存在数据问题");
+                getLogger().warning("========================================");
+            }
+        }
+
+        // 初始化 Service 层
         int maxLandsPerPlayer = configManager.getConfigValue("max-lands-per-player", 5);
         int maxChunksPerLand = configManager.getConfigValue("max-chunks-per-land", 256);
-        int showDurationSeconds = configManager.getConfigValue("show-duration-seconds", 10);
-        int maxShowDurationSeconds = configManager.getConfigValue("max-show-duration-seconds", 300);
-        int messageCooldownSeconds = configManager.getConfigValue("message-cooldown-seconds", 3);
+        Map<String, Boolean> defaultProtectionRules = configManager.getDefaultProtectionRules();
 
-        landManager = new LandManager(dataFile, maxLandsPerPlayer, maxChunksPerLand,
-                configManager.getDefaultProtectionRules());
-
-        // 创建监听器
-        LandSelectListener landSelectListener = new LandSelectListener(landManager, languageManager);
-        LandProtectionListener landProtectionListener = new LandProtectionListener(landManager, configManager,
-                languageManager, messageCooldownSeconds);
-        LandEnterListener landEnterListener = new LandEnterListener(landManager, languageManager);
-
-        // 注册事件监听器
-        getServer().getPluginManager().registerEvents(landSelectListener, this);
-        getServer().getPluginManager().registerEvents(landProtectionListener, this);
-        getServer().getPluginManager().registerEvents(landEnterListener, this);
-
-        // 注册指令
-        LandCommand landCommand = new LandCommand(this, landManager, landSelectListener,
-                configManager, languageManager, showDurationSeconds, maxShowDurationSeconds);
-        this.getCommand("easyland").setExecutor(landCommand);
-        this.getCommand("easyland").setTabCompleter(landCommand);
+        landService = new LandService(landRepository, maxLandsPerPlayer, maxChunksPerLand, defaultProtectionRules);
+        getLogger().info("领地服务层已初始化");
     }
 
     /**
      * 注册事件监听器
      */
     private void registerEventListeners() {
-        // 监听器已在initializeManagers中注册
+        int messageCooldownSeconds = configManager.getConfigValue("message-cooldown-seconds", 3);
+
+        // 创建监听器（使用新架构）
+        LandSelectListener landSelectListener = new LandSelectListener(landService, languageManager, selections);
+        LandProtectionListener landProtectionListener = new LandProtectionListener(landService, configManager,
+                languageManager, messageCooldownSeconds, this);
+        LandEnterListener landEnterListener = new LandEnterListener(landService, languageManager);
+
+        // 注册事件监听器
+        getServer().getPluginManager().registerEvents(landSelectListener, this);
+        getServer().getPluginManager().registerEvents(landProtectionListener, this);
+        getServer().getPluginManager().registerEvents(landEnterListener, this);
+
+        getLogger().info("事件监听器已注册（使用新架构）");
     }
 
     /**
-     * 注册指令
+     * 注册指令（使用新的命令管理器）
      */
     private void registerCommands() {
-        // 指令已在initializeManagers中注册
+        // 将 UUID -> Location[] 转换为 String -> Location[]
+        Map<String, Location[]> stringKeySelections = new HashMap<>();
+        for (Map.Entry<UUID, Location[]> entry : selections.entrySet()) {
+            stringKeySelections.put(entry.getKey().toString(), entry.getValue());
+        }
+
+        // 使用新的命令管理器
+        LandCommandManager commandManager = new LandCommandManager(
+                landService,
+                landRepository,
+                languageManager,
+                stringKeySelections,
+                this
+        );
+        this.getCommand("easyland").setExecutor(commandManager);
+        this.getCommand("easyland").setTabCompleter(commandManager);
+
+        getLogger().info("命令系统已注册（使用新架构）");
     }
 
     /**
@@ -123,16 +210,30 @@ public class EasylandPlugin extends JavaPlugin {
     }
 
     /**
-     * 获取领地管理器
-     */
-    public LandManager getLandManager() {
-        return landManager;
-    }
-
-    /**
      * 获取语言管理器
      */
     public LanguageManager getLanguageManager() {
         return languageManager;
+    }
+
+    /**
+     * 获取领地服务
+     */
+    public LandService getLandService() {
+        return landService;
+    }
+
+    /**
+     * 获取领地仓储
+     */
+    public LandRepository getLandRepository() {
+        return landRepository;
+    }
+
+    /**
+     * 获取选区存储
+     */
+    public Map<UUID, Location[]> getSelections() {
+        return selections;
     }
 }

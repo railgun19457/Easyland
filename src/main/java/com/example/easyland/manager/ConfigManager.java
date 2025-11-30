@@ -1,4 +1,4 @@
-package com.example.easyland;
+package com.example.easyland.manager;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
