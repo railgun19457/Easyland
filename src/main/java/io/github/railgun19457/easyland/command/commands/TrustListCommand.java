@@ -38,13 +38,13 @@ public class TrustListCommand extends SubCommand {
         player.sendMessage("§6========== 信任列表 ==========");
 
         for (Land land : lands) {
-            player.sendMessage("§e领地: §f" + land.getLandId());
+            player.sendMessage("§e领地: §f" + land.landId());
 
-            if (land.getTrusted().isEmpty()) {
+            if (land.trusted().isEmpty()) {
                 player.sendMessage("  §7无信任玩家");
             } else {
-                player.sendMessage("  §7信任玩家 (" + land.getTrusted().size() + "):");
-                for (String uuid : land.getTrusted()) {
+                player.sendMessage("  §7信任玩家 (" + land.trusted().size() + "):");
+                for (String uuid : land.trusted()) {
                     String name = Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid)).getName();
                     player.sendMessage("    §f- " + (name != null ? name : uuid));
                 }

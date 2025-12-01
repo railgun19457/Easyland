@@ -5,6 +5,9 @@ import io.github.railgun19457.easyland.command.SubCommand;
 import io.github.railgun19457.easyland.domain.Land;
 import io.github.railgun19457.easyland.service.LandService;
 import io.github.railgun19457.easyland.service.ServiceResult;
+import io.github.railgun19457.easyland.util.InputValidator;
+import io.github.railgun19457.easyland.util.ValidationResult;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -35,12 +38,22 @@ public class RemoveCommand extends SubCommand {
         }
 
         String landId = args[0];
+        
+        // 验证领地ID格式
+        ValidationResult validation = InputValidator.validateLandId(landId);
+        if (validation instanceof ValidationResult.Failure failure) {
+            Bukkit.getLogger().warning("RemoveCommand: Invalid land ID: " + landId +
+                                     " - " + failure.errorMessage());
+            player.sendMessage("§c" + failure.errorMessage());
+            return false;
+        }
+        
         ServiceResult<Void> result = landService.removeLand(player, landId);
 
         if (result.isSuccess()) {
             languageManager.sendMessage(player, "command.remove.success", landId);
         } else {
-            player.sendMessage("§c" + result.getMessage());
+            player.sendMessage("§c" + result.message());
         }
 
         return result.isSuccess();
@@ -50,10 +63,18 @@ public class RemoveCommand extends SubCommand {
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1 && sender instanceof Player) {
             Player player = (Player) sender;
+            String partial = args[0];
+            
+            // 验证输入格式，如果包含危险字符则不提供补全
+            if (InputValidator.validateLandId(partial) instanceof ValidationResult.Failure) {
+                return Collections.emptyList();
+            }
+            
             // 补全玩家拥有的领地ID
             return landService.findClaimedLandsByOwner(player.getUniqueId()).stream()
-                    .map(Land::getLandId)
-                    .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()))
+                    .map(Land::landId)
+                    .filter(id -> id != null && !id.isEmpty()) // 确保ID不为空
+                    .filter(id -> id.toLowerCase().startsWith(partial.toLowerCase()))
                     .collect(Collectors.toList());
         }
         return Collections.emptyList();

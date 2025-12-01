@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -19,7 +20,7 @@ import java.util.logging.Level;
  */
 public class LanguageManager {
     private final JavaPlugin plugin;
-    private final Map<String, FileConfiguration> languages;
+    private final Map<String, Map<String, String>> messageCache;
     private String defaultLanguage;
 
     // 支持的语言列表
@@ -27,7 +28,7 @@ public class LanguageManager {
 
     public LanguageManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.languages = new HashMap<>();
+        this.messageCache = new HashMap<>();
         this.defaultLanguage = "zh_cn"; // 默认语言
 
         loadLanguages();
@@ -77,8 +78,16 @@ public class LanguageManager {
                 config.setDefaults(defConfig);
             }
 
-            languages.put(language, config);
-            plugin.getLogger().info("Loaded language file: " + language + ".yml");
+            // 将所有消息加载到扁平化的 Map 中以提高性能
+            Map<String, String> messages = new HashMap<>();
+            for (String key : config.getKeys(true)) {
+                if (config.isString(key)) {
+                    messages.put(key, config.getString(key));
+                }
+            }
+            
+            messageCache.put(language, messages);
+            plugin.getLogger().info("Loaded " + messages.size() + " messages for language: " + language);
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "Failed to load language file: " + language + ".yml", e);
         }
@@ -104,30 +113,30 @@ public class LanguageManager {
      * @return 格式化后的消息
      */
     public String getMessage(String language, String key, Object... args) {
-        FileConfiguration config = languages.get(language);
-        if (config == null) {
-            config = languages.get(defaultLanguage);
+        Map<String, String> messages = messageCache.get(language);
+        if (messages == null) {
+            messages = messageCache.get(defaultLanguage);
         }
 
-        if (config == null) {
-            return "Missing language config: " + key;
+        if (messages == null) {
+            return "Missing language config for: " + language + " and key: " + key;
         }
 
-        String message = config.getString(key);
+        String message = messages.get(key);
         if (message == null) {
-            // 尝试使用默认语言
+            // 尝试从默认语言回退
             if (!language.equals(defaultLanguage)) {
                 return getMessage(defaultLanguage, key, args);
             }
             return "Missing message: " + key;
         }
 
-        // 格式化消息
+        // 使用 MessageFormat 进行格式化，更安全且支持 {0}, {1} 占位符
         if (args.length > 0) {
             try {
-                message = String.format(message, args);
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Message formatting failed: " + key, e);
+                message = MessageFormat.format(message, args);
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().log(Level.WARNING, "Message formatting failed for key: " + key + ". Error: " + e.getMessage());
             }
         }
 
@@ -197,15 +206,62 @@ public class LanguageManager {
 
     /**
      * 重新加载所有语言文件
+     *
+     * @return 重载结果信息
      */
-    public void reload() {
-        languages.clear();
-        loadLanguages();
+    public ReloadResult reload() {
+        plugin.getLogger().info("开始重载语言文件...");
+        
+        try {
+            // 清理现有语言缓存
+            messageCache.clear();
+            
+            // 重新加载所有语言文件
+            loadLanguages();
+            
+            String message = "语言文件已重载，当前默认语言: " + defaultLanguage;
+            plugin.getLogger().info(message);
+            
+            return new ReloadResult(true, message, null);
+        } catch (Exception e) {
+            String errorMessage = "重载语言文件时出错: " + e.getMessage();
+            plugin.getLogger().severe(errorMessage);
+            e.printStackTrace();
+            
+            return new ReloadResult(false, errorMessage, e);
+        }
+    }
+    
+    /**
+     * 重载结果类
+     */
+    public static class ReloadResult {
+        private final boolean success;
+        private final String message;
+        private final Exception exception;
+        
+        public ReloadResult(boolean success, String message, Exception exception) {
+            this.success = success;
+            this.message = message;
+            this.exception = exception;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+        
+        public Exception getException() {
+            return exception;
+        }
     }
 
     /**
      * 获取支持的语言列表
-     * 
+     *
      * @return 支持的语言数组
      */
     public String[] getSupportedLanguages() {

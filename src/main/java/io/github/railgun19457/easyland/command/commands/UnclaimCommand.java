@@ -40,7 +40,7 @@ public class UnclaimCommand extends SubCommand {
         if (result.isSuccess()) {
             languageManager.sendMessage(player, "command.unclaim.success", landId);
         } else {
-            player.sendMessage("§c" + result.getMessage());
+            player.sendMessage("§c" + result.message());
         }
 
         return result.isSuccess();
@@ -52,7 +52,7 @@ public class UnclaimCommand extends SubCommand {
             Player player = (Player) sender;
             // 补全玩家已认领的领地ID
             return landService.findClaimedLandsByOwner(player.getUniqueId()).stream()
-                    .map(Land::getLandId)
+                    .map(Land::landId)
                     .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }

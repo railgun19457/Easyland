@@ -1,9 +1,16 @@
 package io.github.railgun19457.easyland.manager;
 
+import io.github.railgun19457.easyland.config.PluginConfig;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * 配置文件管理器
@@ -12,6 +19,7 @@ import java.util.*;
 public class ConfigManager {
     private final JavaPlugin plugin;
     private final Map<String, Object> standardConfig;
+    private volatile PluginConfig pluginConfig;
     
     // 常量定义
     private static final String[] PROTECTION_RULES = {
@@ -38,6 +46,8 @@ public class ConfigManager {
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.standardConfig = createStandardConfig();
+        // 初始化时加载一次配置
+        loadConfigIntoRecord();
     }
 
     /**
@@ -271,36 +281,26 @@ public class ConfigManager {
     }
 
     /**
-     * 获取配置值，如果不存在则返回默认值
+     * 获取当前的配置快照
+     * @return 不可变的 PluginConfig record
      */
-    public <T> T getConfigValue(String key, T defaultValue) {
-        FileConfiguration config = plugin.getConfig();
-        if (config.contains(key)) {
-            Object value = config.get(key);
-            try {
-                @SuppressWarnings("unchecked")
-                T result = (T) value;
-                return result;
-            } catch (ClassCastException e) {
-                plugin.getLogger()
-                        .warning("Config item " + key + " has incorrect type, using default: " + defaultValue);
-                return defaultValue;
-            }
-        }
-        return defaultValue;
+    public PluginConfig getPluginConfig() {
+        return pluginConfig;
     }
-
+    
     /**
      * 获取默认保护规则
      */
     public Map<String, Boolean> getDefaultProtectionRules() {
         Map<String, Boolean> defaultRules = new HashMap<>();
-
-        for (String ruleName : PROTECTION_RULES) {
-            boolean defaultValue = getConfigValue(KEY_PROTECTION + "." + ruleName + ".default", false);
-            defaultRules.put(ruleName, defaultValue);
+        if (pluginConfig == null || pluginConfig.protectionRules() == null) {
+            return defaultRules;
         }
-
+        
+        for (Map.Entry<String, PluginConfig.ProtectionRule> entry : pluginConfig.protectionRules().entrySet()) {
+            defaultRules.put(entry.getKey(), entry.getValue().defaultValue());
+        }
+        
         return defaultRules;
     }
 
@@ -308,7 +308,11 @@ public class ConfigManager {
      * 检查保护规则是否被服务器允许启用
      */
     public boolean isProtectionRuleEnabled(String ruleName) {
-        return getConfigValue(KEY_PROTECTION + "." + ruleName + ".enable", true);
+        if (pluginConfig == null || pluginConfig.protectionRules() == null) {
+            return true; // 默认为 true
+        }
+        PluginConfig.ProtectionRule rule = pluginConfig.protectionRules().get(ruleName);
+        return rule == null || rule.enable();
     }
 
     /**
@@ -316,5 +320,112 @@ public class ConfigManager {
      */
     public static String[] getProtectionRules() {
         return PROTECTION_RULES.clone();
+    }
+    
+    /**
+     * 重载配置
+     * 重新加载配置文件并执行验证和修复
+     *
+     * @return 重载结果信息
+     */
+    public ReloadResult reload() {
+        plugin.getLogger().info("开始重载配置...");
+        
+        try {
+            // 重新加载配置文件
+            plugin.reloadConfig();
+            
+            // 检查并修复配置
+            boolean hasChanges = checkAndFixConfig();
+            
+            // 将加载的配置载入到 Record 中
+            loadConfigIntoRecord();
+            
+            String message = hasChanges ? "配置已重载并修复" : "配置已重载";
+            plugin.getLogger().info(message);
+            
+            return new ReloadResult(true, message, null);
+        } catch (Exception e) {
+            String errorMessage = "重载配置时出错: " + e.getMessage();
+            plugin.getLogger().severe(errorMessage);
+            e.printStackTrace();
+            
+            return new ReloadResult(false, errorMessage, e);
+        }
+    }
+    
+    /**
+     * 从 FileConfiguration 加载配置到 PluginConfig record 中
+     */
+    private void loadConfigIntoRecord() {
+        FileConfiguration config = plugin.getConfig();
+        
+        String language = config.getString(KEY_LANGUAGE, "zh_cn");
+        int maxLands = config.getInt(KEY_MAX_LANDS, 5);
+        int maxChunks = config.getInt(KEY_MAX_CHUNKS, 256);
+        String particle = config.getString(KEY_PARTICLE, "firework");
+        int showDuration = config.getInt(KEY_SHOW_DURATION, 10);
+        int maxShowDuration = config.getInt(KEY_MAX_SHOW_DURATION, 300);
+        int messageCooldown = config.getInt(KEY_MESSAGE_COOLDOWN, 3);
+        
+        Map<String, PluginConfig.ProtectionRule> protectionRules = loadProtectionRules(config);
+        
+        this.pluginConfig = new PluginConfig(
+            language,
+            maxLands,
+            maxChunks,
+            particle,
+            showDuration,
+            maxShowDuration,
+            messageCooldown,
+            protectionRules
+        );
+        plugin.getLogger().info("Configuration loaded into immutable record.");
+    }
+    
+    /**
+     * 从配置文件加载保护规则
+     */
+    private Map<String, PluginConfig.ProtectionRule> loadProtectionRules(FileConfiguration config) {
+        ConfigurationSection protectionSection = config.getConfigurationSection(KEY_PROTECTION);
+        if (protectionSection == null) {
+            plugin.getLogger().warning("Protection configuration section is missing!");
+            return Collections.emptyMap();
+        }
+        
+        Map<String, PluginConfig.ProtectionRule> rules = new HashMap<>();
+        for (String ruleName : PROTECTION_RULES) {
+            boolean enable = protectionSection.getBoolean(ruleName + ".enable", true);
+            boolean defaultValue = protectionSection.getBoolean(ruleName + ".default", false);
+            rules.put(ruleName, new PluginConfig.ProtectionRule(enable, defaultValue));
+        }
+        return Collections.unmodifiableMap(rules);
+    }
+    
+    /**
+     * 重载结果类
+     */
+    public static class ReloadResult {
+        private final boolean success;
+        private final String message;
+        private final Exception exception;
+        
+        public ReloadResult(boolean success, String message, Exception exception) {
+            this.success = success;
+            this.message = message;
+            this.exception = exception;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+        
+        public Exception getException() {
+            return exception;
+        }
     }
 }

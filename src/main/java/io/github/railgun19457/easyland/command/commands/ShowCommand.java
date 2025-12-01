@@ -5,6 +5,8 @@ import io.github.railgun19457.easyland.command.SubCommand;
 import io.github.railgun19457.easyland.domain.Land;
 import io.github.railgun19457.easyland.repository.LandRepository;
 import io.github.railgun19457.easyland.service.LandService;
+import io.github.railgun19457.easyland.util.InputValidator;
+import io.github.railgun19457.easyland.util.ValidationResult;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,6 +41,16 @@ public class ShowCommand extends SubCommand {
         }
 
         String landId = args[0];
+        
+        // 验证领地ID格式
+        ValidationResult validation = InputValidator.validateLandId(landId);
+        if (validation instanceof ValidationResult.Failure failure) {
+            Bukkit.getLogger().warning("ShowCommand: Invalid land ID: " + landId +
+                                     " - " + failure.errorMessage());
+            player.sendMessage("§c" + failure.errorMessage());
+            return false;
+        }
+        
         Optional<Land> landOpt = landRepository.findByLandId(landId);
 
         if (landOpt.isEmpty()) {
@@ -50,25 +62,33 @@ public class ShowCommand extends SubCommand {
 
         // 显示领地详细信息
         player.sendMessage("§6========== 领地信息 ==========");
-        player.sendMessage("§e领地ID: §f" + land.getLandId());
+        player.sendMessage("§e领地ID: §f" + land.landId());
 
         if (land.isClaimed()) {
-            String ownerName = Bukkit.getOfflinePlayer(java.util.UUID.fromString(land.getOwner())).getName();
+            String ownerName = Bukkit.getOfflinePlayer(java.util.UUID.fromString(land.owner())).getName();
             player.sendMessage("§e所有者: §f" + (ownerName != null ? ownerName : "未知"));
         } else {
             player.sendMessage("§e状态: §7未认领");
         }
 
-        player.sendMessage("§e世界: §f" + land.getWorldName());
-        player.sendMessage("§e区块范围: §f(" + land.getMinX() + ", " + land.getMinZ() + ") -> ("
+        player.sendMessage("§e世界: §f" + land.worldName());
+        player.sendMessage("§e坐标范围: §f(" + land.getMinX() + ", " + land.getMinZ() + ") -> ("
                 + land.getMaxX() + ", " + land.getMaxZ() + ")");
-        player.sendMessage("§e区块数量: §f" + land.getChunkCount());
+        // 使用 getArea() 代替过时的 getChunkCount()，并转换为更直观的显示
+        int area = land.getArea();
+        String areaDisplay;
+        if (area >= 10000) {
+            areaDisplay = String.format("%.1f万方块", area / 10000.0);
+        } else {
+            areaDisplay = area + "方块";
+        }
+        player.sendMessage("§e面积: §f" + areaDisplay);
 
         // 显示信任列表
-        if (!land.getTrusted().isEmpty()) {
-            player.sendMessage("§e信任玩家: §f" + land.getTrusted().size() + " 人");
+        if (!land.trusted().isEmpty()) {
+            player.sendMessage("§e信任玩家: §f" + land.trusted().size() + " 人");
             StringBuilder trustedNames = new StringBuilder();
-            for (String uuid : land.getTrusted()) {
+            for (String uuid : land.trusted()) {
                 String name = Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid)).getName();
                 if (name != null) {
                     if (trustedNames.length() > 0) trustedNames.append(", ");
@@ -84,7 +104,7 @@ public class ShowCommand extends SubCommand {
 
         // 显示保护规则
         player.sendMessage("§e保护规则:");
-        land.getProtectionRules().forEach((rule, enabled) -> {
+        land.protectionRules().forEach((rule, enabled) -> {
             String status = enabled ? "§a启用" : "§c禁用";
             player.sendMessage("  §7" + rule + ": " + status);
         });
@@ -97,11 +117,47 @@ public class ShowCommand extends SubCommand {
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
-            // 补全所有领地ID
-            return landRepository.findAll().stream()
-                    .map(Land::getLandId)
-                    .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()))
+            // 添加调试日志：记录Tab补全请求
+            Bukkit.getLogger().info("ShowCommand tabComplete requested by " + sender.getName() +
+                                   " with partial: " + args[0]);
+            
+            String partial = args[0];
+            
+            // 验证输入格式，如果包含危险字符则不提供补全
+            if (InputValidator.validateLandId(partial) instanceof ValidationResult.Failure) {
+                Bukkit.getLogger().warning("ShowCommand: Invalid input for tab completion: " + partial);
+                return Collections.emptyList();
+            }
+            
+            // 检查权限：只有有权限的用户才能看到所有领地
+            if (!sender.hasPermission("easyland.show.all")) {
+                // 如果没有查看所有领地的权限，只返回用户自己的领地
+                if (sender instanceof Player) {
+                    Player player = (Player) sender;
+                    Bukkit.getLogger().info("ShowCommand: Limiting tab completion to player's own lands for " + player.getName());
+                    return landService.findClaimedLandsByOwner(player.getUniqueId()).stream()
+                            .map(Land::landId)
+                            .filter(id -> id != null && !id.isEmpty()) // 确保ID不为空
+                            .filter(id -> id.toLowerCase().startsWith(partial.toLowerCase()))
+                            .limit(20) // 限制返回数量，防止信息泄露
+                            .collect(Collectors.toList());
+                }
+                return Collections.emptyList();
+            }
+            
+            // 有权限的用户可以看到所有领地，但仍然需要限制数量
+            List<String> allLandIds = landRepository.findAll().stream()
+                    .map(Land::landId)
+                    .filter(id -> id != null && !id.isEmpty()) // 确保ID不为空
+                    .filter(id -> id.toLowerCase().startsWith(partial.toLowerCase()))
+                    .limit(50) // 限制返回数量，防止信息泄露
                     .collect(Collectors.toList());
+            
+            // 添加调试日志：记录返回的补全结果数量
+            Bukkit.getLogger().info("ShowCommand: Returning " + allLandIds.size() +
+                                   " land IDs for tab completion (limited for security)");
+            
+            return allLandIds;
         }
         return Collections.emptyList();
     }

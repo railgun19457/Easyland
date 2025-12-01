@@ -1,13 +1,16 @@
 package io.github.railgun19457.easyland.service;
 
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import io.github.railgun19457.easyland.domain.Land;
 import io.github.railgun19457.easyland.repository.LandRepository;
+import io.github.railgun19457.easyland.util.CacheManager;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 
 /**
@@ -18,12 +21,18 @@ public class LandService {
     private static final Logger logger = Logger.getLogger(LandService.class.getName());
 
     private final LandRepository repository;
-    private final int maxLandsPerPlayer;
-    private final int maxChunksPerLand;
-    private final Map<String, Boolean> defaultProtectionRules;
+    private int maxLandsPerPlayer;
+    private int maxChunksPerLand;
+    private Map<String, Boolean> defaultProtectionRules;
 
-    // 空间索引缓存，提高查询性能
-    private final Map<String, Set<Land>> worldLandCache = new ConcurrentHashMap<>();
+    // 空间索引缓存，提高查询性能 - 使用CacheManager管理
+    private final CacheManager<String, Set<Land>> worldLandCache;
+    
+    // 读写锁用于保护缓存操作
+    private final ReentrantReadWriteLock cacheLock = new ReentrantReadWriteLock();
+    
+    // 用于保护数据库操作的锁
+    private final Object dbLock = new Object();
 
     public LandService(LandRepository repository, int maxLandsPerPlayer, int maxChunksPerLand,
                        Map<String, Boolean> defaultProtectionRules) {
@@ -31,6 +40,10 @@ public class LandService {
         this.maxLandsPerPlayer = maxLandsPerPlayer;
         this.maxChunksPerLand = maxChunksPerLand;
         this.defaultProtectionRules = defaultProtectionRules != null ? defaultProtectionRules : new HashMap<>();
+        
+        // 初始化缓存管理器 - 最大1000个世界，永不过期，启用定时清理
+        this.worldLandCache = new CacheManager<>("WorldLandCache", 1000, 0);
+        
         rebuildCache();
         logger.info("LandService initialized with maxLandsPerPlayer=" + maxLandsPerPlayer +
                     ", maxChunksPerLand=" + maxChunksPerLand);
@@ -40,30 +53,85 @@ public class LandService {
      * 重建缓存
      */
     public void rebuildCache() {
-        worldLandCache.clear();
-        List<Land> allLands = repository.findAll();
-        for (Land land : allLands) {
-            addToCache(land);
+        cacheLock.writeLock().lock();
+        try {
+            logger.info("Starting cache rebuild - current cache size: " + worldLandCache.size());
+            worldLandCache.clear();
+            
+            List<Land> allLands;
+            synchronized (dbLock) {
+                allLands = repository.findAll();
+            }
+            
+            logger.info("Found " + allLands.size() + " lands to cache");
+            for (Land land : allLands) {
+                addToCacheInternal(land);
+            }
+            logger.info("Cache rebuild completed - new cache size: " + worldLandCache.size());
+            worldLandCache.logStats(); // 输出缓存统计
+        } finally {
+            cacheLock.writeLock().unlock();
         }
     }
 
     /**
-     * 添加到缓存
+     * 添加到缓存（线程安全版本）
      */
     private void addToCache(Land land) {
-        worldLandCache.computeIfAbsent(land.getWorldName(), k -> ConcurrentHashMap.newKeySet()).add(land);
+        cacheLock.writeLock().lock();
+        try {
+            addToCacheInternal(land);
+        } finally {
+            cacheLock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * 内部添加到缓存方法（调用者必须持有写锁）
+     */
+    private void addToCacheInternal(Land land) {
+        String worldName = land.worldName();
+        Set<Land> worldLands = worldLandCache.get(worldName);
+        
+        if (worldLands == null) {
+            worldLands = ConcurrentHashMap.newKeySet();
+            worldLandCache.put(worldName, worldLands);
+        }
+        
+        worldLands.add(land);
+        logger.fine("Added land " + land.landId() + " to cache for world " + worldName +
+                   " (world now has " + worldLands.size() + " lands)");
     }
 
     /**
-     * 从缓存移除
+     * 从缓存移除（线程安全版本）
      */
     private void removeFromCache(Land land) {
-        Set<Land> worldLands = worldLandCache.get(land.getWorldName());
+        cacheLock.writeLock().lock();
+        try {
+            removeFromCacheInternal(land);
+        } finally {
+            cacheLock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * 内部从缓存移除方法（调用者必须持有写锁）
+     */
+    private void removeFromCacheInternal(Land land) {
+        String worldName = land.worldName();
+        Set<Land> worldLands = worldLandCache.get(worldName);
         if (worldLands != null) {
-            worldLands.remove(land);
-            if (worldLands.isEmpty()) {
-                worldLandCache.remove(land.getWorldName());
+            boolean removed = worldLands.remove(land);
+            if (removed) {
+                logger.fine("Removed land " + land.landId() + " from cache for world " + worldName);
             }
+            if (worldLands.isEmpty()) {
+                worldLandCache.remove(worldName);
+                logger.fine("Removed empty cache entry for world " + worldName);
+            }
+        } else {
+            logger.warning("Attempted to remove land " + land.landId() + " from cache but world " + worldName + " not found");
         }
     }
 
@@ -81,22 +149,37 @@ public class LandService {
             return ServiceResult.failure("领地面积超过限制: " + area + " > " + maxArea + " 方块");
         }
 
-        // 检查是否重叠
-        if (hasOverlap(pos1, pos2)) {
-            logger.warning("Failed to create land " + landId + ": overlaps with existing land");
-            return ServiceResult.failure("领地与现有领地重叠");
+        // 检查是否重叠（使用读锁）
+        cacheLock.readLock().lock();
+        try {
+            if (hasOverlapInternal(pos1, pos2)) {
+                logger.warning("Failed to create land " + landId + ": overlaps with existing land");
+                return ServiceResult.failure("领地与现有领地重叠");
+            }
+        } finally {
+            cacheLock.readLock().unlock();
         }
 
         // 检查领地ID是否已存在
-        if (landId != null && !landId.isEmpty() && repository.existsByLandId(landId)) {
+        boolean landExists;
+        synchronized (dbLock) {
+            landExists = landId != null && !landId.isEmpty() && repository.existsByLandId(landId);
+        }
+        
+        if (landExists) {
             logger.warning("Failed to create land " + landId + ": land ID already exists");
             return ServiceResult.failure("领地ID已存在: " + landId);
         }
 
         // 创建领地
         Land land = new Land(landId, null, pos1, pos2);
-        land.setDefaultProtectionRules(defaultProtectionRules);
-        Land savedLand = repository.save(land);
+        Land landWithRules = land.withDefaultProtectionRules(defaultProtectionRules);
+        
+        Land savedLand;
+        synchronized (dbLock) {
+            savedLand = repository.save(landWithRules);
+        }
+        
         addToCache(savedLand);
 
         logger.info("Successfully created land: " + landId + " with area " + area + " blocks");
@@ -123,14 +206,22 @@ public class LandService {
         logger.info("Player " + player.getName() + " attempting to claim land: " + landId);
 
         // 检查玩家已拥有的领地数量
-        int ownedCount = repository.countByOwner(playerUuid);
+        int ownedCount;
+        synchronized (dbLock) {
+            ownedCount = repository.countByOwner(playerUuid);
+        }
+        
         if (ownedCount >= maxLandsPerPlayer) {
             logger.warning("Player " + player.getName() + " cannot claim land: reached limit " + maxLandsPerPlayer);
             return ServiceResult.failure("已达到最大领地数量限制: " + maxLandsPerPlayer);
         }
 
         // 查找未认领的领地
-        Optional<Land> landOpt = repository.findByLandId(landId);
+        Optional<Land> landOpt;
+        synchronized (dbLock) {
+            landOpt = repository.findByLandId(landId);
+        }
+        
         if (landOpt.isEmpty()) {
             logger.warning("Player " + player.getName() + " cannot claim land: land " + landId + " not found");
             return ServiceResult.failure("领地不存在: " + landId);
@@ -143,8 +234,11 @@ public class LandService {
         }
 
         // 认领领地
-        land.setOwner(playerUuid);
-        Land savedLand = repository.save(land);
+        Land claimedLand = land.withOwner(playerUuid);
+        Land savedLand;
+        synchronized (dbLock) {
+            savedLand = repository.save(claimedLand);
+        }
 
         // 更新缓存
         removeFromCache(land);
@@ -160,19 +254,26 @@ public class LandService {
     public ServiceResult<Land> unclaimLand(Player player, String landId) {
         String playerUuid = player.getUniqueId().toString();
 
-        Optional<Land> landOpt = repository.findByLandId(landId);
+        Optional<Land> landOpt;
+        synchronized (dbLock) {
+            landOpt = repository.findByLandId(landId);
+        }
+        
         if (landOpt.isEmpty()) {
             return ServiceResult.failure("领地不存在: " + landId);
         }
 
         Land land = landOpt.get();
-        if (!playerUuid.equals(land.getOwner())) {
+        if (!playerUuid.equals(land.owner())) {
             return ServiceResult.failure("你不是该领地的所有者");
         }
 
         // 取消认领
-        land.setOwner(null);
-        Land savedLand = repository.save(land);
+        Land unclaimedLand = land.withOwner(null);
+        Land savedLand;
+        synchronized (dbLock) {
+            savedLand = repository.save(unclaimedLand);
+        }
 
         // 更新缓存
         removeFromCache(land);
@@ -188,20 +289,28 @@ public class LandService {
         String playerUuid = player.getUniqueId().toString();
         logger.info("Player " + player.getName() + " attempting to remove land: " + landId);
 
-        Optional<Land> landOpt = repository.findByLandId(landId);
+        Optional<Land> landOpt;
+        synchronized (dbLock) {
+            landOpt = repository.findByLandId(landId);
+        }
+        
         if (landOpt.isEmpty()) {
             logger.warning("Player " + player.getName() + " cannot remove land: land " + landId + " not found");
             return ServiceResult.failure("领地不存在: " + landId);
         }
 
         Land land = landOpt.get();
-        if (!playerUuid.equals(land.getOwner())) {
+        if (!playerUuid.equals(land.owner())) {
             logger.warning("Player " + player.getName() + " cannot remove land: not the owner of " + landId);
             return ServiceResult.failure("你不是该领地的所有者");
         }
 
         removeFromCache(land);
-        boolean deleted = repository.deleteById(land.getId());
+        boolean deleted;
+        synchronized (dbLock) {
+            deleted = repository.deleteById(land.id());
+        }
+        
         if (deleted) {
             logger.info("Player " + player.getName() + " successfully removed land: " + landId);
             return ServiceResult.success(null);
@@ -216,24 +325,36 @@ public class LandService {
      */
     public ServiceResult<Void> trustPlayer(Player owner, String trustedUuid) {
         String ownerUuid = owner.getUniqueId().toString();
-        List<Land> lands = repository.findByOwner(ownerUuid);
+        List<Land> lands;
+        synchronized (dbLock) {
+            lands = repository.findByOwner(ownerUuid);
+        }
 
         if (lands.isEmpty()) {
             return ServiceResult.failure("你没有领地");
         }
 
         // 信任到所有领地
+        List<Land> updatedLands = new ArrayList<>();
         for (Land land : lands) {
-            land.trust(trustedUuid);
+            updatedLands.add(land.trust(trustedUuid));
         }
 
         // 使用批量保存提高性能
-        List<Land> savedLands = repository.saveAll(lands);
+        List<Land> savedLands;
+        synchronized (dbLock) {
+            savedLands = repository.saveAll(updatedLands);
+        }
 
         // 更新缓存
-        for (int i = 0; i < lands.size(); i++) {
-            removeFromCache(lands.get(i));
-            addToCache(savedLands.get(i));
+        cacheLock.writeLock().lock();
+        try {
+            for (int i = 0; i < updatedLands.size(); i++) {
+                removeFromCacheInternal(updatedLands.get(i));
+                addToCacheInternal(savedLands.get(i));
+            }
+        } finally {
+            cacheLock.writeLock().unlock();
         }
 
         return ServiceResult.success(null);
@@ -244,24 +365,36 @@ public class LandService {
      */
     public ServiceResult<Void> untrustPlayer(Player owner, String trustedUuid) {
         String ownerUuid = owner.getUniqueId().toString();
-        List<Land> lands = repository.findByOwner(ownerUuid);
+        List<Land> lands;
+        synchronized (dbLock) {
+            lands = repository.findByOwner(ownerUuid);
+        }
 
         if (lands.isEmpty()) {
             return ServiceResult.failure("你没有领地");
         }
 
         // 从所有领地取消信任
+        List<Land> updatedLands = new ArrayList<>();
         for (Land land : lands) {
-            land.untrust(trustedUuid);
+            updatedLands.add(land.untrust(trustedUuid));
         }
 
         // 使用批量保存提高性能
-        List<Land> savedLands = repository.saveAll(lands);
+        List<Land> savedLands;
+        synchronized (dbLock) {
+            savedLands = repository.saveAll(updatedLands);
+        }
 
         // 更新缓存
-        for (int i = 0; i < lands.size(); i++) {
-            removeFromCache(lands.get(i));
-            addToCache(savedLands.get(i));
+        cacheLock.writeLock().lock();
+        try {
+            for (int i = 0; i < updatedLands.size(); i++) {
+                removeFromCacheInternal(updatedLands.get(i));
+                addToCacheInternal(savedLands.get(i));
+            }
+        } finally {
+            cacheLock.writeLock().unlock();
         }
 
         return ServiceResult.success(null);
@@ -273,18 +406,25 @@ public class LandService {
     public ServiceResult<Void> setProtectionRule(Player owner, String landId, String ruleName, boolean enabled) {
         String ownerUuid = owner.getUniqueId().toString();
 
-        Optional<Land> landOpt = repository.findByLandId(landId);
+        Optional<Land> landOpt;
+        synchronized (dbLock) {
+            landOpt = repository.findByLandId(landId);
+        }
+        
         if (landOpt.isEmpty()) {
             return ServiceResult.failure("领地不存在: " + landId);
         }
 
         Land land = landOpt.get();
-        if (!ownerUuid.equals(land.getOwner())) {
+        if (!ownerUuid.equals(land.owner())) {
             return ServiceResult.failure("你不是该领地的所有者");
         }
 
-        land.setProtectionRule(ruleName, enabled);
-        Land savedLand = repository.save(land);
+        Land updatedLand = land.withProtectionRule(ruleName, enabled);
+        Land savedLand;
+        synchronized (dbLock) {
+            savedLand = repository.save(updatedLand);
+        }
 
         // 更新缓存
         removeFromCache(land);
@@ -297,27 +437,34 @@ public class LandService {
      * 获取玩家的领地
      */
     public List<Land> getPlayerLands(Player player) {
-        return repository.findByOwner(player.getUniqueId().toString());
+        synchronized (dbLock) {
+            return repository.findByOwner(player.getUniqueId().toString());
+        }
     }
 
     /**
      * 根据区块查找领地（使用缓存优化）
      */
     public Optional<Land> getLandByChunk(Chunk chunk) {
-        String worldName = chunk.getWorld().getName();
-        Set<Land> worldLands = worldLandCache.get(worldName);
+        cacheLock.readLock().lock();
+        try {
+            String worldName = chunk.getWorld().getName();
+            Set<Land> worldLands = worldLandCache.get(worldName);
 
-        if (worldLands == null) {
-            return Optional.empty();
-        }
-
-        // 在该世界的领地中查找包含此区块的领地
-        for (Land land : worldLands) {
-            if (land.contains(chunk)) {
-                return Optional.of(land);
+            if (worldLands == null) {
+                return Optional.empty();
             }
+
+            // 在该世界的领地中查找包含此区块的领地
+            for (Land land : worldLands) {
+                if (land.intersectsChunk(chunk)) {
+                    return Optional.of(land);
+                }
+            }
+            return Optional.empty();
+        } finally {
+            cacheLock.readLock().unlock();
         }
-        return Optional.empty();
     }
 
     /**
@@ -339,7 +486,11 @@ public class LandService {
      */
     public boolean canCreateLand(Player player, Location pos1, Location pos2) {
         // 检查玩家已拥有的领地数
-        int ownedCount = repository.countByOwner(player.getUniqueId().toString());
+        int ownedCount;
+        synchronized (dbLock) {
+            ownedCount = repository.countByOwner(player.getUniqueId().toString());
+        }
+        
         if (ownedCount >= maxLandsPerPlayer) {
             return false;
         }
@@ -365,21 +516,27 @@ public class LandService {
      * 获取所有已认领的领地
      */
     public List<Land> getAllClaimedLands() {
-        return repository.findAllClaimed();
+        synchronized (dbLock) {
+            return repository.findAllClaimed();
+        }
     }
 
     /**
      * 获取所有未认领的领地
      */
     public List<Land> getAllUnclaimedLands() {
-        return repository.findAllUnclaimed();
+        synchronized (dbLock) {
+            return repository.findAllUnclaimed();
+        }
     }
 
     /**
      * 查找玩家已认领的领地
      */
     public List<Land> findClaimedLandsByOwner(UUID ownerUuid) {
-        return repository.findByOwner(ownerUuid.toString());
+        synchronized (dbLock) {
+            return repository.findByOwner(ownerUuid.toString());
+        }
     }
 
     /**
@@ -406,6 +563,18 @@ public class LandService {
      * 检查是否与现有领地重叠（使用世界坐标）
      */
     private boolean hasOverlap(Location pos1, Location pos2) {
+        cacheLock.readLock().lock();
+        try {
+            return hasOverlapInternal(pos1, pos2);
+        } finally {
+            cacheLock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * 内部重叠检查方法（调用者必须持有读锁）
+     */
+    private boolean hasOverlapInternal(Location pos1, Location pos2) {
         String worldName = pos1.getWorld().getName();
         Set<Land> worldLands = worldLandCache.get(worldName);
 
@@ -454,5 +623,94 @@ public class LandService {
 
     public int getMaxChunksPerLand() {
         return maxChunksPerLand;
+    }
+    
+    /**
+     * 获取缓存统计信息
+     */
+    public CacheStats getCacheStats() {
+        return worldLandCache.getStats();
+    }
+    
+    /**
+     * 清理缓存
+     */
+    public void cleanupCache() {
+        worldLandCache.clear(); // Or just let it expire
+    }
+    
+    /**
+     * 更新配置参数
+     *
+     * @param maxLandsPerPlayer 每个玩家最大领地数
+     * @param maxChunksPerLand 每个领地最大区块数
+     * @param defaultProtectionRules 默认保护规则
+     * @return 更新结果
+     */
+    public ReloadResult updateConfiguration(int maxLandsPerPlayer, int maxChunksPerLand,
+                                          Map<String, Boolean> defaultProtectionRules) {
+        logger.info("更新 LandService 配置...");
+        
+        try {
+            // 更新配置参数
+            this.maxLandsPerPlayer = maxLandsPerPlayer;
+            this.maxChunksPerLand = maxChunksPerLand;
+            this.defaultProtectionRules.clear();
+            if (defaultProtectionRules != null) {
+                this.defaultProtectionRules.putAll(defaultProtectionRules);
+            }
+            
+            // 重建缓存以确保一致性
+            rebuildCache();
+            
+            String message = String.format("LandService 配置已更新: maxLands=%d, maxChunks=%d",
+                                          maxLandsPerPlayer, maxChunksPerLand);
+            logger.info(message);
+            
+            return new ReloadResult(true, message, null);
+        } catch (Exception e) {
+            String errorMessage = "更新 LandService 配置时出错: " + e.getMessage();
+            logger.severe(errorMessage);
+            e.printStackTrace();
+            
+            return new ReloadResult(false, errorMessage, e);
+        }
+    }
+    
+    /**
+     * 重载结果类
+     */
+    public static class ReloadResult {
+        private final boolean success;
+        private final String message;
+        private final Exception exception;
+        
+        public ReloadResult(boolean success, String message, Exception exception) {
+            this.success = success;
+            this.message = message;
+            this.exception = exception;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+        
+        public Exception getException() {
+            return exception;
+        }
+    }
+
+    /**
+     * 关闭服务，清理资源
+     */
+    public void shutdown() {
+        logger.info("Shutting down LandService...");
+        worldLandCache.logStats();
+        worldLandCache.shutdown();
+        logger.info("LandService shutdown completed");
     }
 }

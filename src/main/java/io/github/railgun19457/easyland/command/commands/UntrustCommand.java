@@ -4,6 +4,8 @@ import io.github.railgun19457.easyland.manager.LanguageManager;
 import io.github.railgun19457.easyland.command.SubCommand;
 import io.github.railgun19457.easyland.service.LandService;
 import io.github.railgun19457.easyland.service.ServiceResult;
+import io.github.railgun19457.easyland.util.InputValidator;
+import io.github.railgun19457.easyland.util.ValidationResult;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -35,19 +37,24 @@ public class UntrustCommand extends SubCommand {
         }
 
         String targetPlayerName = args[0];
-        Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
-
-        if (targetPlayer == null) {
-            languageManager.sendMessage(player, "error.player-not-found", targetPlayerName);
+        
+        // 使用InputValidator验证玩家名格式和存在性
+        ValidationResult validation = InputValidator.validatePlayerExists(targetPlayerName);
+        if (validation instanceof ValidationResult.Failure failure) {
+            Bukkit.getLogger().warning("UntrustCommand: Invalid player name: " + targetPlayerName +
+                                     " - " + failure.errorMessage());
+            player.sendMessage("§c" + failure.errorMessage());
             return false;
         }
+        
+        Player targetPlayer = Bukkit.getPlayer(targetPlayerName);
 
         ServiceResult<Void> result = landService.untrustPlayer(player, targetPlayer.getUniqueId().toString());
 
         if (result.isSuccess()) {
             languageManager.sendMessage(player, "command.untrust.success", targetPlayer.getName());
         } else {
-            player.sendMessage("§c" + result.getMessage());
+            player.sendMessage("§c" + result.message());
         }
 
         return result.isSuccess();
@@ -56,10 +63,17 @@ public class UntrustCommand extends SubCommand {
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
-            // 补全在线玩家名称
+            // 返回在线玩家列表，但先验证输入
+            String partial = args[0];
+            
+            // 如果输入包含危险字符，不提供补全
+            if (InputValidator.validatePlayerName(partial) instanceof ValidationResult.Failure) {
+                return Collections.emptyList();
+            }
+            
             return Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
-                    .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))
+                    .filter(name -> name.toLowerCase().startsWith(partial.toLowerCase()))
                     .collect(Collectors.toList());
         }
         return Collections.emptyList();

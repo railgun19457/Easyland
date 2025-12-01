@@ -1,9 +1,11 @@
 package io.github.railgun19457.easyland.listener;
 
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import io.github.railgun19457.easyland.domain.Land;
 import io.github.railgun19457.easyland.manager.ConfigManager;
 import io.github.railgun19457.easyland.manager.LanguageManager;
 import io.github.railgun19457.easyland.service.LandService;
+import io.github.railgun19457.easyland.util.CacheManager;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,17 +29,24 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Logger;
 
 public class LandProtectionListener implements Listener {
+    private static final Logger logger = Logger.getLogger(LandProtectionListener.class.getName());
+    
     private final LandService landService;
-    private final ConfigManager configManager;
-    private final LanguageManager languageManager;
+    private ConfigManager configManager;
+    private LanguageManager languageManager;
     private final org.bukkit.plugin.java.JavaPlugin plugin;
     private static final String BYPASS_PERMISSION = "easyland.bypass";
 
-    // 消息冷却系统，防止刷屏
-    private final Map<String, Long> messageCooldowns = new ConcurrentHashMap<>();
-    private final long messageCooldownMs;
+    // 消息冷却系统，防止刷屏 - 使用CacheManager管理
+    private CacheManager<String, Long> messageCooldowns;
+    private long messageCooldownMs;
+    
+    // 读写锁用于保护消息冷却操作
+    private final ReentrantReadWriteLock messageLock = new ReentrantReadWriteLock();
 
     public LandProtectionListener(LandService landService, ConfigManager configManager,
             LanguageManager languageManager, int messageCooldownSeconds, org.bukkit.plugin.java.JavaPlugin plugin) {
@@ -46,6 +55,11 @@ public class LandProtectionListener implements Listener {
         this.languageManager = languageManager;
         this.messageCooldownMs = messageCooldownSeconds * 1000L; // 转换为毫秒
         this.plugin = plugin;
+        
+        // 初始化消息冷却缓存 - 最大1000个玩家，过期时间为冷却时间的10倍，启用定时清理
+        this.messageCooldowns = new CacheManager<>("MessageCooldowns", 1000, messageCooldownMs * 10);
+        
+        logger.info("LandProtectionListener initialized with message cooldown: " + messageCooldownSeconds + " seconds");
     }
 
     /**
@@ -65,7 +79,35 @@ public class LandProtectionListener implements Listener {
 
         Land land = landOpt.get();
 
-        // 如果是无主领地，禁止操作
+        // 如果是无主领地，统一处理策略：允许破坏但不允许放置
+        // 这个方法主要用于破坏类操作，所以无主领地允许操作
+        if (!land.isClaimed()) {
+            return true;
+        }
+
+        // 检查是否为领地主人或受信任的玩家
+        return land.isTrusted(player.getUniqueId().toString());
+    }
+    
+    /**
+     * 检查玩家是否有权限在指定位置进行放置操作
+     * 与 hasPermission 的区别在于无主领地的处理策略
+     */
+    private boolean hasPlacePermission(Player player, Location location) {
+        if (player.hasPermission(BYPASS_PERMISSION)) {
+            return true;
+        }
+
+        Optional<Land> landOpt = landService.getLandByLocation(location);
+
+        // 如果不在任何领地内，允许操作
+        if (landOpt.isEmpty()) {
+            return true;
+        }
+
+        Land land = landOpt.get();
+
+        // 如果是无主领地，禁止放置操作
         if (!land.isClaimed()) {
             return false;
         }
@@ -80,41 +122,57 @@ public class LandProtectionListener implements Listener {
     private void sendProtectionMessage(Player player, String message) {
         String playerId = player.getUniqueId().toString();
         long currentTime = System.currentTimeMillis();
-        Long lastMessageTime = messageCooldowns.get(playerId);
+        
+        messageLock.readLock().lock();
+        try {
+            Long lastMessageTime = messageCooldowns.get(playerId);
 
-        if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
-            player.sendMessage(message);
-            messageCooldowns.put(playerId, currentTime);
-
-            // 定期清理过期的冷却记录（每100次调用清理一次）
-            if (messageCooldowns.size() > 100 && Math.random() < 0.01) {
-                cleanupExpiredCooldowns();
+            if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
+                messageLock.readLock().unlock();
+                messageLock.writeLock().lock();
+                try {
+                    // 双重检查锁定模式
+                    lastMessageTime = messageCooldowns.get(playerId);
+                    if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
+                        player.sendMessage(message);
+                        messageCooldowns.put(playerId, currentTime);
+                    }
+                } finally {
+                    messageLock.writeLock().unlock();
+                    messageLock.readLock().lock();
+                }
             }
+        } finally {
+            messageLock.readLock().unlock();
         }
     }
 
     private void sendLocalizedProtectionMessage(Player player, String messageKey, Object... args) {
         String playerId = player.getUniqueId().toString();
         long currentTime = System.currentTimeMillis();
-        Long lastMessageTime = messageCooldowns.get(playerId);
+        
+        messageLock.readLock().lock();
+        try {
+            Long lastMessageTime = messageCooldowns.get(playerId);
 
-        if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
-            languageManager.sendMessage(player, messageKey, args);
-            messageCooldowns.put(playerId, currentTime);
-
-            // 定期清理过期的冷却记录（每100次调用清理一次）
-            if (messageCooldowns.size() > 100 && Math.random() < 0.01) {
-                cleanupExpiredCooldowns();
+            if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
+                messageLock.readLock().unlock();
+                messageLock.writeLock().lock();
+                try {
+                    // 双重检查锁定模式
+                    lastMessageTime = messageCooldowns.get(playerId);
+                    if (lastMessageTime == null || (currentTime - lastMessageTime) >= messageCooldownMs) {
+                        languageManager.sendMessage(player, messageKey, args);
+                        messageCooldowns.put(playerId, currentTime);
+                    }
+                } finally {
+                    messageLock.writeLock().unlock();
+                    messageLock.readLock().lock();
+                }
             }
+        } finally {
+            messageLock.readLock().unlock();
         }
-    }
-
-    /**
-     * 清理过期的冷却记录
-     */
-    private void cleanupExpiredCooldowns() {
-        long currentTime = System.currentTimeMillis();
-        messageCooldowns.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > messageCooldownMs * 10); // 保留10倍冷却时间的记录
     }
 
     /**
@@ -155,6 +213,33 @@ public class LandProtectionListener implements Listener {
                 .filter(entity -> entity instanceof org.bukkit.entity.Item)
                 .forEach(org.bukkit.entity.Entity::remove);
     }
+    
+    /**
+     * 增强的VeinMiner漏洞防护，清理更大范围内的掉落物
+     */
+    private void clearNearbyDropsEnhanced(Location location) {
+        if (location == null || location.getWorld() == null)
+            return;
+
+        // 清理以该位置为中心5x5x5范围内的掉落物，增强防护
+        location.getWorld().getNearbyEntities(location, 3, 3, 3)
+                .stream()
+                .filter(entity -> entity instanceof org.bukkit.entity.Item)
+                .forEach(org.bukkit.entity.Entity::remove);
+                
+        // 额外清理可能因连锁反应产生的掉落物
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -2; z <= 2; z++) {
+                    Location checkLoc = location.clone().add(x, y, z);
+                    location.getWorld().getNearbyEntities(checkLoc, 1, 1, 1)
+                            .stream()
+                            .filter(entity -> entity instanceof org.bukkit.entity.Item)
+                            .forEach(org.bukkit.entity.Entity::remove);
+                }
+            }
+        }
+    }
 
     // ================= 方块保护规则 =================
 
@@ -175,9 +260,10 @@ public class LandProtectionListener implements Listener {
             // 先取消事件，防止方块被破坏
             event.setCancelled(true);
 
-            // 清理可能已经生成的掉落物（延迟1tick确保掉落物已生成）
+            // 使用增强的清理方法，更彻底地防止VeinMiner漏洞
+            // 延迟1tick确保掉落物已生成
             org.bukkit.Bukkit.getScheduler().runTaskLater(plugin,
-                    () -> clearNearbyDrops(location), 1L);
+                    () -> clearNearbyDropsEnhanced(location), 1L);
 
             sendLocalizedProtectionMessage(player, "protection-message.block");
         }
@@ -195,7 +281,7 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection"))
             return;
 
-        if (!hasPermission(player, location)) {
+        if (!hasPlacePermission(player, location)) {
             event.setCancelled(true);
             sendLocalizedProtectionMessage(player, "protection-message.block");
         }
@@ -213,7 +299,7 @@ public class LandProtectionListener implements Listener {
         if (!isProtectionEnabled(land, "block-protection"))
             return;
 
-        if (!hasPermission(player, location)) {
+        if (!hasPlacePermission(player, location)) {
             event.setCancelled(true);
             sendProtectionMessage(player, languageManager.getMessage("protection.bucket-place"));
         }
@@ -307,51 +393,32 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityExplode(EntityExplodeEvent event) {
-        if (event.isCancelled())
+        if (event.isCancelled()) {
             return;
-
-        // 只拦截爆炸物来源
-        org.bukkit.entity.Entity exploder = event.getEntity();
-        org.bukkit.entity.EntityType type = exploder != null ? exploder.getType() : null;
-        boolean isExplosive = false;
-        if (type != null) {
-            switch (type) {
-                case CREEPER:
-                case TNT:
-                case FIREBALL:
-                case SMALL_FIREBALL:
-                case WITHER_SKULL:
-                case DRAGON_FIREBALL:
-                    isExplosive = true;
-                    break;
-                default:
-                    // 兼容末地水晶爆炸
-                    if (exploder != null && exploder.getClass().getSimpleName().contains("EnderCrystal")) {
-                        isExplosive = true;
-                    }
-                    break;
-            }
-        }
-        // 床和重生锚爆炸没有实体，需特殊处理
-        if (type == null && event.getLocation() != null) {
-            String blockName = event.getLocation().getBlock().getType().name();
-            if (blockName.contains("BED") || blockName.contains("RESPAWN_ANCHOR")) {
-                isExplosive = true;
-            }
         }
 
-        if (!isExplosive)
-            return;
+        boolean isExplosive = switch (event.getEntityType()) {
+            case CREEPER, TNT, FIREBALL, SMALL_FIREBALL, WITHER_SKULL, DRAGON_FIREBALL -> true;
+            default -> {
+                if (event.getEntity() != null && event.getEntity().getType().name().equals("ENDER_CRYSTAL")) {
+                    yield true;
+                }
+                if (event.getLocation() != null) {
+                    String blockName = event.getLocation().getBlock().getType().name();
+                    yield blockName.contains("BED") || blockName.contains("RESPAWN_ANCHOR");
+                }
+                yield false;
+            }
+        };
 
-        // 移除领地内启用了爆炸保护的方块，防止被爆炸破坏
-        Iterator<Block> blockIterator = event.blockList().iterator();
-        while (blockIterator.hasNext()) {
-            Block block = blockIterator.next();
+        if (!isExplosive) {
+            return;
+        }
+
+        event.blockList().removeIf(block -> {
             Optional<Land> land = getLandAt(block.getLocation());
-            if (isProtectionEnabled(land, "explosion-protection")) {
-                blockIterator.remove();
-            }
-        }
+            return isProtectionEnabled(land, "explosion-protection");
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -376,34 +443,25 @@ public class LandProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamage(EntityDamageEvent event) {
-        if (event.isCancelled())
+        if (event.isCancelled()) {
             return;
-        if (!(event.getEntity() instanceof Player))
-            return;
-        Player player = (Player) event.getEntity();
-        Optional<Land> land = getLandAt(player.getLocation());
-        if (!isProtectionEnabled(land, "player-protection"))
-            return;
+        }
+        
+        if (event.getEntity() instanceof Player player) {
+            Optional<Land> land = getLandAt(player.getLocation());
+            if (!isProtectionEnabled(land, "player-protection")) {
+                return;
+            }
 
-        // 只拦截外部伤害类型
-        switch (event.getCause()) {
-            case ENTITY_ATTACK:
-            case ENTITY_SWEEP_ATTACK:
-            case PROJECTILE:
-            case MAGIC:
-            case BLOCK_EXPLOSION:
-            case ENTITY_EXPLOSION:
-            case FIRE_TICK:
-            case HOT_FLOOR:
-            case THORNS:
-                if (hasPermission(player, player.getLocation())) {
-                    event.setCancelled(true);
-                    sendProtectionMessage(player, languageManager.getMessage("protection.self-protected"));
-                }
-                break;
-            default:
-                // 不拦截摔落、火烧、溺水等自我伤害
-                break;
+            boolean isExternalDamage = switch (event.getCause()) {
+                case ENTITY_ATTACK, ENTITY_SWEEP_ATTACK, PROJECTILE, MAGIC, BLOCK_EXPLOSION, ENTITY_EXPLOSION, FIRE_TICK, HOT_FLOOR, THORNS -> true;
+                default -> false;
+            };
+
+            if (isExternalDamage && !hasPermission(player, player.getLocation())) {
+                event.setCancelled(true);
+                sendProtectionMessage(player, languageManager.getMessage("protection.self-protected"));
+            }
         }
     }
 
@@ -438,6 +496,110 @@ public class LandProtectionListener implements Listener {
                 sendProtectionMessage(victim, languageManager.getMessage("protection.protected"));
                 event.setCancelled(true);
             }
+        }
+    }
+    
+    /**
+     * 获取缓存统计信息
+     */
+    public CacheStats getCacheStats() {
+        return messageCooldowns.getStats();
+    }
+    
+    /**
+     * 清理缓存
+     */
+    public void cleanupCache() {
+        messageCooldowns.clear();
+    }
+    
+    /**
+     * 重载监听器配置
+     *
+     * @param newConfigManager 新的配置管理器
+     * @param newLanguageManager 新的语言管理器
+     * @param messageCooldownSeconds 新的消息冷却时间
+     * @return 重载结果
+     */
+    public ReloadResult reload(ConfigManager newConfigManager, LanguageManager newLanguageManager,
+                              int messageCooldownSeconds) {
+        logger.info("重载 LandProtectionListener 配置...");
+        
+        try {
+            // 更新配置管理器和语言管理器引用
+            this.configManager = newConfigManager;
+            this.languageManager = newLanguageManager;
+            
+            // 更新消息冷却时间
+            long newMessageCooldownMs = messageCooldownSeconds * 1000L;
+            if (this.messageCooldownMs != newMessageCooldownMs) {
+                this.messageCooldownMs = newMessageCooldownMs;
+                
+                // 重新创建消息冷却缓存
+                messageLock.writeLock().lock();
+                try {
+                    messageCooldowns.shutdown();
+                    this.messageCooldowns = new CacheManager<>("MessageCooldowns", 1000, messageCooldownMs * 10);
+                } finally {
+                    messageLock.writeLock().unlock();
+                }
+            }
+            
+            String message = "LandProtectionListener 配置已重载，消息冷却时间: " + messageCooldownSeconds + " 秒";
+            logger.info(message);
+            
+            return new ReloadResult(true, message, null);
+        } catch (Exception e) {
+            String errorMessage = "重载 LandProtectionListener 配置时出错: " + e.getMessage();
+            logger.severe(errorMessage);
+            e.printStackTrace();
+            
+            return new ReloadResult(false, errorMessage, e);
+        }
+    }
+    
+    /**
+     * 重载结果类
+     */
+    public static class ReloadResult {
+        private final boolean success;
+        private final String message;
+        private final Exception exception;
+        
+        public ReloadResult(boolean success, String message, Exception exception) {
+            this.success = success;
+            this.message = message;
+            this.exception = exception;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+        
+        public Exception getException() {
+            return exception;
+        }
+    }
+
+    /**
+     * 关闭监听器，清理资源
+     */
+    public void shutdown() {
+        logger.info("Shutting down LandProtectionListener...");
+        
+        try {
+            // 清理消息冷却缓存
+            messageCooldowns.logStats();
+            messageCooldowns.shutdown();
+            
+            logger.info("LandProtectionListener shutdown completed");
+        } catch (Exception e) {
+            logger.warning("Error during LandProtectionListener shutdown: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
