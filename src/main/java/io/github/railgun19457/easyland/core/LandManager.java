@@ -62,24 +62,14 @@ public class LandManager {
      * @param creator The player creating the land
      * @param pos1    The first corner position
      * @param pos2    The second corner position
+     * @param name    The name of the land (optional)
      * @return The created land, or null if creation failed
      */
-    public Land createLand(org.bukkit.entity.Player creator, Location pos1, Location pos2) {
+    public Land createLand(org.bukkit.entity.Player creator, Location pos1, Location pos2, String name) {
         try {
             // Validate positions
             if (!pos1.getWorld().equals(pos2.getWorld())) {
                 logger.warning("Positions must be in the same world");
-                return null;
-            }
-
-            // Get or create player in database
-            io.github.railgun19457.easyland.model.Player dbPlayer = playerDAO.getOrCreatePlayer(
-                creator.getUniqueId(), creator.getName());
-            
-            // Check player's land count
-            int landCount = landDAO.getLandCountByOwner(dbPlayer.getId());
-            if (landCount >= configManager.getMaxLandsPerPlayer()) {
-                logger.info("Player " + creator.getName() + " has reached maximum land count");
                 return null;
             }
 
@@ -118,9 +108,10 @@ public class LandManager {
 
             // Create the land using Builder pattern
             Land land = Land.builder()
+                .name(name)
                 .world(pos1.getWorld().getName())
                 .coordinates(x1, z1, x2, z2)
-                .ownerId(dbPlayer.getId())
+                .ownerId(0) // Default to unowned (0)
                 .teleportX(centerX + 0.5)
                 .teleportY((double) centerY)
                 .teleportZ(centerZ + 0.5)
@@ -132,7 +123,7 @@ public class LandManager {
             // Invalidate cache for the affected area
             landCache.invalidateCacheInArea(land.getWorld(), land.getX1(), land.getZ1(), land.getX2(), land.getZ2());
             
-            logger.info("Created land " + land.getId() + " for player " + creator.getName());
+            logger.info("Created land " + land.getId() + " by admin " + creator.getName());
             return land;
             
         } catch (SQLException e) {
@@ -201,9 +192,25 @@ public class LandManager {
      */
     public boolean deleteLand(org.bukkit.entity.Player player, String landId) {
         try {
-            // 使用辅助方法验证领地所有权
-            Land land = getAndVerifyLandOwner(player, landId);
-            if (land == null) {
+            // 获取领地
+            Optional<Land> landOpt = getLandByIdOrName(landId);
+            if (!landOpt.isPresent()) {
+                logger.info("Land not found for deletion: " + landId);
+                return false;
+            }
+            Land land = landOpt.get();
+
+            // 检查权限：所有者或管理员
+            boolean isOwner = false;
+            Optional<io.github.railgun19457.easyland.model.Player> dbPlayerOpt = playerDAO.getPlayerByUuid(player.getUniqueId());
+            if (dbPlayerOpt.isPresent()) {
+                if (land.getOwnerId() == dbPlayerOpt.get().getId()) {
+                    isOwner = true;
+                }
+            }
+
+            if (!isOwner && !player.hasPermission("easyland.admin.manage") && !player.hasPermission("easyland.admin")) {
+                logger.info("Player " + player.getName() + " tried to delete land " + landId + " without permission");
                 return false;
             }
 
@@ -216,9 +223,6 @@ public class LandManager {
             logger.info("Player " + player.getName() + " deleted land " + landId);
             return true;
             
-        } catch (LandNotFoundException e) {
-            logger.info("Land not found for deletion: " + e.getLandId());
-            return false;
         } catch (SQLException e) {
             logger.severe("Failed to delete land: " + e.getMessage());
             return false;

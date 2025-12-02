@@ -594,8 +594,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Location pos1 = selectionManager.getPos1(player);
         Location pos2 = selectionManager.getPos2(player);
         
+        // 获取可选的领地名称
+        String name = null;
+        if (args.length > 1) {
+            name = args[1];
+        }
+        
         // 创建领地
-        Land land = landManager.createLand(player, pos1, pos2);
+        Land land = landManager.createLand(player, pos1, pos2, name);
         
         if (land != null) {
             player.sendMessage(i18nManager.getMessage("create.success", String.valueOf(land.getId())));
@@ -1000,7 +1006,23 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             
             switch (subCommand) {
                 case "claim":
+                    // 补全无主领地（ownerId == 0）
+                    if (args.length == 2) {
+                        completions.addAll(getUnownedLandCompletions());
+                    }
+                    break;
+
                 case "delete":
+                    // 管理员可以补全所有领地，普通玩家只能补全自己的领地
+                    if (player != null) {
+                        if (player.hasPermission("easyland.admin.manage") || player.hasPermission("easyland.admin")) {
+                            completions.addAll(getAllLandCompletions());
+                        } else {
+                            completions.addAll(getPlayerLandCompletions(player));
+                        }
+                    }
+                    break;
+
                 case "abandon":
                 case "rename":
                 case "setspawn":
@@ -1195,6 +1217,26 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         return completions;
     }
     
+    /**
+     * 获取所有无主领地（ownerId=0）的名称列表。
+     */
+    private List<String> getUnownedLandCompletions() {
+        List<String> completions = new ArrayList<>();
+        try {
+            List<Land> allLands = landManager.getAllLands();
+            for (Land land : allLands) {
+                if (land.getOwnerId() == 0) {
+                    if (land.getName() != null && !land.getName().isEmpty()) {
+                        completions.add(land.getName());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 忽略错误
+        }
+        return completions;
+    }
+
     /**
      * 根据玩家ID获取玩家名称。
      *
