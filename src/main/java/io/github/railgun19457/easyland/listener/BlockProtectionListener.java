@@ -5,15 +5,13 @@ import io.github.railgun19457.easyland.model.LandFlag;
 //import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 
 /**
  * 监听方块破坏和放置事件，实现领地保护。
  */
-public class BlockProtectionListener implements Listener {
-    private final FlagManager flagManager;
+public class BlockProtectionListener extends BaseProtectionListener {
 
     /**
      * BlockProtectionListener 构造函数。
@@ -21,7 +19,7 @@ public class BlockProtectionListener implements Listener {
      * @param flagManager 标志管理器
      */
     public BlockProtectionListener(FlagManager flagManager) {
-        this.flagManager = flagManager;
+        super(flagManager);
     }
 
     /**
@@ -33,7 +31,7 @@ public class BlockProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockBreak(BlockBreakEvent event) {
         // 如果事件已被取消，则不处理
-        if (event.isCancelled()) {
+        if (isEventCancelled(event)) {
             return;
         }
 
@@ -54,7 +52,7 @@ public class BlockProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(BlockPlaceEvent event) {
         // 如果事件已被取消，则不处理
-        if (event.isCancelled()) {
+        if (isEventCancelled(event)) {
             return;
         }
 

@@ -5,15 +5,70 @@ import io.github.railgun19457.easyland.model.LandFlag;
 import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.block.Block;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * 监听玩家交互事件，实现领地容器保护。
  */
-public class ContainerProtectionListener implements Listener {
-    private final FlagManager flagManager;
+public class ContainerProtectionListener extends BaseProtectionListener {
+    
+    /**
+     * 需要保护的容器类型集合。
+     * 包含所有明确指定的方块类型。
+     */
+    private static final Set<Material> PROTECTED_CONTAINERS = Set.of(
+        // 容器类
+        Material.CHEST,
+        Material.TRAPPED_CHEST,
+        Material.ENDER_CHEST,
+        Material.SHULKER_BOX,
+        // 熔炉和工作台
+        Material.FURNACE,
+        Material.BLAST_FURNACE,
+        Material.SMOKER,
+        Material.CRAFTING_TABLE,
+        Material.ANVIL,
+        Material.CHIPPED_ANVIL,
+        Material.DAMAGED_ANVIL,
+        Material.SMITHING_TABLE,
+        Material.FLETCHING_TABLE,
+        Material.GRINDSTONE,
+        Material.STONECUTTER,
+        Material.LOOM,
+        // 酿造台和其他功能性方块
+        Material.BREWING_STAND,
+        Material.ENCHANTING_TABLE,
+        Material.BEACON,
+        Material.HOPPER,
+        Material.DROPPER,
+        Material.DISPENSER,
+        // 其他可交互方块
+        Material.LEVER,
+        Material.STONE_BUTTON,
+        Material.OAK_BUTTON,
+        Material.SWEET_BERRY_BUSH,
+        Material.CAVE_VINES,
+        Material.CAVE_VINES_PLANT
+    );
+    
+    /**
+     * 需要保护的方块后缀列表。
+     * 用于匹配以这些后缀结尾的方块类型。
+     */
+    private static final List<String> PROTECTED_SUFFIXES = List.of(
+        "_SHULKER_BOX",
+        "_DOOR",
+        "_GATE",
+        "_TRAPDOOR",
+        "_BUTTON",
+        "_PRESSURE_PLATE",
+        "_CROP",
+        "_STEM"
+    );
 
     /**
      * ContainerProtectionListener 构造函数。
@@ -21,7 +76,7 @@ public class ContainerProtectionListener implements Listener {
      * @param flagManager 标志管理器
      */
     public ContainerProtectionListener(FlagManager flagManager) {
-        this.flagManager = flagManager;
+        super(flagManager);
     }
 
     /**
@@ -59,67 +114,19 @@ public class ContainerProtectionListener implements Listener {
 
     /**
      * 检查方块类型是否是需要保护的方块。
+     * 使用常量集合和后缀列表进行高效匹配。
      *
      * @param material 要检查的方块类型
      * @return 如果是需要保护的方块返回 true，否则返回 false
      */
     private boolean isProtectedBlock(Material material) {
-        // 容器类
-        if (material == Material.CHEST || 
-            material == Material.TRAPPED_CHEST || 
-            material == Material.ENDER_CHEST ||
-            material == Material.SHULKER_BOX ||
-            material.name().endsWith("_SHULKER_BOX")) {
+        // 首先检查是否在明确指定的保护容器集合中
+        if (PROTECTED_CONTAINERS.contains(material)) {
             return true;
         }
-
-        // 熔炉和工作台
-        if (material == Material.FURNACE || 
-            material == Material.BLAST_FURNACE || 
-            material == Material.SMOKER ||
-            material == Material.CRAFTING_TABLE ||
-            material == Material.ANVIL ||
-            material == Material.CHIPPED_ANVIL ||
-            material == Material.DAMAGED_ANVIL ||
-            material == Material.SMITHING_TABLE ||
-            material == Material.FLETCHING_TABLE ||
-            material == Material.GRINDSTONE ||
-            material == Material.STONECUTTER ||
-            material == Material.LOOM) {
-            return true;
-        }
-
-        // 酿造台和其他功能性方块
-        if (material == Material.BREWING_STAND || 
-            material == Material.ENCHANTING_TABLE ||
-            material == Material.BEACON ||
-            material == Material.HOPPER ||
-            material == Material.DROPPER ||
-            material == Material.DISPENSER) {
-            return true;
-        }
-
-        // 门和其他可交互方块
-        if (material.name().endsWith("_DOOR") || 
-            material.name().endsWith("_GATE") ||
-            material.name().endsWith("_TRAPDOOR") ||
-            material == Material.LEVER ||
-            material == Material.STONE_BUTTON ||
-            material == Material.OAK_BUTTON ||
-            material.name().endsWith("_BUTTON") ||
-            material.name().endsWith("_PRESSURE_PLATE")) {
-            return true;
-        }
-
-        // 农作物和其他可交互方块
-        if (material == Material.SWEET_BERRY_BUSH ||
-            material == Material.CAVE_VINES ||
-            material == Material.CAVE_VINES_PLANT ||
-            material.name().endsWith("_CROP") ||
-            material.name().endsWith("_STEM")) {
-            return true;
-        }
-
-        return false;
+        
+        // 然后检查是否匹配任何保护后缀
+        String materialName = material.name();
+        return PROTECTED_SUFFIXES.stream().anyMatch(materialName::endsWith);
     }
 }

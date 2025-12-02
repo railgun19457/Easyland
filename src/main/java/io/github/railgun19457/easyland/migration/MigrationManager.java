@@ -1,6 +1,7 @@
 package io.github.railgun19457.easyland.migration;
 
 import io.github.railgun19457.easyland.EasyLand;
+import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.core.ConfigManager;
 import io.github.railgun19457.easyland.exception.MigrationFileNotFoundException;
 import io.github.railgun19457.easyland.model.Land;
@@ -32,6 +33,7 @@ import java.util.logging.Logger;
 public class MigrationManager {
     private final EasyLand plugin;
     private final Logger logger;
+    private final I18nManager i18nManager;
     private final ConfigManager configManager;
     private final DatabaseManager databaseManager;
     @SuppressWarnings("unused")
@@ -51,6 +53,7 @@ public class MigrationManager {
     public MigrationManager(EasyLand plugin) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.i18nManager = plugin.getI18nManager();
         this.configManager = plugin.getConfigManager();
         this.databaseManager = plugin.getDatabaseManager();
         this.playerDAO = plugin.getPlayerDAO();
@@ -92,7 +95,7 @@ public class MigrationManager {
      * @return 迁移是否成功
      */
     public boolean runMigration(CommandSender sender) {
-        sender.sendMessage("§e[Easyland] 开始数据迁移...");
+        sender.sendMessage(i18nManager.getMessage("migrate.started"));
         logger.info("开始数据迁移...");
         
         long startTime = System.currentTimeMillis();
@@ -100,37 +103,37 @@ public class MigrationManager {
         // 使用try-with-resources来管理数据库连接
         try (Connection conn = databaseManager.createNewConnection()) {
             // 0. 检查必需的文件是否存在
-            sender.sendMessage("§e[Easyland] 正在检查必需的文件...");
+            sender.sendMessage(i18nManager.getMessage("migrate.checking-files"));
             checkRequiredFiles();
-            sender.sendMessage("§a[Easyland] 文件检查完成。");
+            sender.sendMessage(i18nManager.getMessage("migrate.files-checked"));
             
             // 1. 迁移配置文件
-            sender.sendMessage("§e[Easyland] 正在迁移配置文件...");
+            sender.sendMessage(i18nManager.getMessage("migrate.migrating-config"));
             migrateConfig();
-            sender.sendMessage("§a[Easyland] 配置文件迁移完成。");
+            sender.sendMessage(i18nManager.getMessage("migrate.config-migrated"));
             
             // 2. 迁移领地数据，传入新创建的连接
-            sender.sendMessage("§e[Easyland] 正在迁移领地数据...");
+            sender.sendMessage(i18nManager.getMessage("migrate.migrating-lands"));
             int migratedLands = migrateLands(sender, conn);
-            sender.sendMessage("§a[Easyland] 领地数据迁移完成，共迁移 " + migratedLands + " 个领地。");
+            sender.sendMessage(i18nManager.getMessage("migrate.lands-migrated", String.valueOf(migratedLands)));
             
             long duration = System.currentTimeMillis() - startTime;
             
             // 在所有迁移操作完成后，重载配置和重新初始化相关组件
-            sender.sendMessage("§e[Easyland] 正在重载配置和重新初始化组件...");
+            sender.sendMessage(i18nManager.getMessage("migrate.reloading-config"));
             configManager.reloadConfig();
-            sender.sendMessage("§a[Easyland] 配置重载完成。");
+            sender.sendMessage(i18nManager.getMessage("migrate.config-reloaded"));
             
-            sender.sendMessage("§a[Easyland] 数据迁移成功完成！耗时: " + (duration / 1000.0) + " 秒。");
+            sender.sendMessage(i18nManager.getMessage("migrate.success", String.valueOf(duration / 1000.0)));
             logger.info("数据迁移成功完成，共迁移 " + migratedLands + " 个领地，耗时: " + (duration / 1000.0) + " 秒。");
             
             return true;
         } catch (MigrationFileNotFoundException e) {
-            sender.sendMessage("§c[Easyland] 数据迁移失败: " + e.getMessage());
+            sender.sendMessage(i18nManager.getMessage("migrate.failed-with-reason", e.getMessage()));
             logger.severe("数据迁移失败: " + e.getMessage());
             return false;
         } catch (Exception e) {
-            sender.sendMessage("§c[Easyland] 数据迁移失败: " + e.getMessage());
+            sender.sendMessage(i18nManager.getMessage("migrate.failed-with-reason", e.getMessage()));
             logger.severe("数据迁移失败: " + e.getMessage());
             e.printStackTrace();
             return false;
@@ -314,62 +317,47 @@ public class MigrationManager {
                         continue;
                     }
 
-                    // 动态查找领地的唯一标识符
-                    String landIdentifier = null;
-                    Integer originalLandId = null;
-
-                    // 首先尝试从数据中查找ID字段
+                    // 解析领地名称
+                    // 旧版数据中，"id" 字段实际存储的是领地名称（如 "小恶龙之家"）
+                    String landName = null;
                     if (landData.containsKey("id") && landData.get("id") != null) {
-                        landIdentifier = String.valueOf(landData.get("id"));
+                        landName = String.valueOf(landData.get("id"));
                     }
-                    // 如果没有id字段，尝试name字段
+                    // 如果没有 id 字段，尝试 name 字段
                     else if (landData.containsKey("name") && landData.get("name") != null) {
-                        landIdentifier = String.valueOf(landData.get("name"));
+                        landName = String.valueOf(landData.get("name"));
                     }
 
-                    // 尝试从原始键中获取数字ID
-                    try {
-                        originalLandId = Integer.parseInt(key);
-                        // 如果没有找到标识符，使用原始键作为备用
-                        if (landIdentifier == null) {
-                            landIdentifier = "land_" + originalLandId;
-                        }
-                    } catch (NumberFormatException e) {
-                        // 原始键不是数字，使用它作为标识符
-                        if (landIdentifier == null) {
-                            landIdentifier = key;
-                        }
-                    }
-
-                    // 最后的备用方案：使用索引
-                    if (landIdentifier == null) {
-                        landIdentifier = "migrated_land_" + landIndex;
-                        logger.warning("无法为领地索引 " + landIndex + " 确定唯一标识符，使用生成的标识符: " + landIdentifier);
-                    }
-
-                    // 确定数据库中使用的领地ID
+                    // 确定数据库中使用的领地ID（从YAML键获取）
                     int landId;
-                    if (originalLandId != null) {
-                        landId = originalLandId;
-                    } else {
-                        // 如果原始键不是数字，使用索引作为ID
+                    try {
+                        landId = Integer.parseInt(key);
+                    } catch (NumberFormatException e) {
+                        // 如果YAML键不是数字，使用索引作为ID
                         landId = landIndex;
+                        logger.warning("领地键 '" + key + "' 不是数字，使用索引 " + landIndex + " 作为数据库ID");
+                    }
+
+                    // 如果没有领地名称，生成一个默认名称
+                    if (landName == null || landName.isEmpty()) {
+                        landName = "领地_" + landId;
+                        logger.warning("领地 ID " + landId + " 没有名称，使用生成的名称: " + landName);
                     }
 
                     // 检查是否已存在该领地（幂等性）
                     if (landDAO.getLandById(landId).isPresent()) {
-                        logger.info("领地 ID " + landId + " (标识符: " + landIdentifier + ") 已存在，跳过迁移。");
+                        logger.info("领地 ID " + landId + " (" + landName + ") 已存在，跳过迁移。");
                         continue;
                     }
 
                     // 验证必需的字段
                     if (!landData.containsKey("owner") || landData.get("owner") == null) {
-                        logger.warning("领地 " + landIdentifier + " 缺少所有者信息，跳过迁移。");
+                        logger.warning("领地 " + landName + " 缺少所有者信息，跳过迁移。");
                         continue;
                     }
 
                     if (!landData.containsKey("world") || landData.get("world") == null) {
-                        logger.warning("领地 " + landIdentifier + " 缺少世界信息，跳过迁移。");
+                        logger.warning("领地 " + landName + " 缺少世界信息，跳过迁移。");
                         continue;
                     }
 
@@ -378,7 +366,7 @@ public class MigrationManager {
                     try {
                         ownerUuid = UUID.fromString(String.valueOf(landData.get("owner")));
                     } catch (IllegalArgumentException e) {
-                        logger.warning("领地 " + landIdentifier + " 的所有者UUID格式不正确: " + landData.get("owner") + "，跳过迁移。");
+                        logger.warning("领地 " + landName + " 的所有者UUID格式不正确: " + landData.get("owner") + "，跳过迁移。");
                         continue;
                     }
                     int ownerId = getOrCreatePlayer(conn, ownerUuid);
@@ -399,13 +387,13 @@ public class MigrationManager {
 
                     String world = String.valueOf(landData.get("world"));
 
-                    logger.info("正在迁移领地: ID=" + landId + ", 标识符=" + landIdentifier + ", 世界=" + world +
+                    logger.info("正在迁移领地: ID=" + landId + ", 名称=" + landName + ", 世界=" + world +
                                ", 所有者=" + ownerUuid +
                                ", 区块坐标=(" + chunkMinX + "," + chunkMinZ + ")-(" + chunkMaxX + "," + chunkMaxZ + ")" +
                                ", 世界坐标=(" + worldMinX + "," + worldMinZ + ")-(" + worldMaxX + "," + worldMaxZ + ")");
 
                     // 创建领地对象，使用转换后的世界坐标
-                    Land land = new Land(landId, landIdentifier, world, worldMinX, worldMinZ, worldMaxX, worldMaxZ, ownerId);
+                    Land land = new Land(landId, landName, world, worldMinX, worldMinZ, worldMaxX, worldMaxZ, ownerId);
 
                     // 插入领地数据（使用指定的ID）
                     insertLandWithId(conn, land);
@@ -419,7 +407,7 @@ public class MigrationManager {
                         trustedPlayers = castedTrusted;
                     }
                     if (trustedPlayers != null && !trustedPlayers.isEmpty()) {
-                        logger.info("领地 " + landIdentifier + " 有 " + trustedPlayers.size() + " 个信任玩家");
+                        logger.info("领地 " + landName + " 有 " + trustedPlayers.size() + " 个信任玩家");
                         for (String trustedUuidStr : trustedPlayers) {
                             try {
                                 UUID trustedUuid = UUID.fromString(trustedUuidStr);
@@ -428,7 +416,7 @@ public class MigrationManager {
                                 // 直接插入信任关系，使用当前连接
                                 insertLandTrust(conn, landId, trustedPlayerId);
                             } catch (IllegalArgumentException e) {
-                                logger.warning("领地 " + landIdentifier + " 的信任玩家UUID格式不正确: " + trustedUuidStr + "，跳过该玩家。");
+                                logger.warning("领地 " + landName + " 的信任玩家UUID格式不正确: " + trustedUuidStr + "，跳过该玩家。");
                             }
                         }
                     }
@@ -442,7 +430,7 @@ public class MigrationManager {
                         protection = castedProtection;
                     }
                     if (protection != null && !protection.isEmpty()) {
-                        logger.info("领地 " + landIdentifier + " 有 " + protection.size() + " 个保护规则");
+                        logger.info("领地 " + landName + " 有 " + protection.size() + " 个保护规则");
                         for (Map.Entry<String, Object> protectionEntry : protection.entrySet()) {
                             String flagName = protectionEntry.getKey();
                             boolean isEnabled = (Boolean) protectionEntry.getValue();
@@ -452,9 +440,9 @@ public class MigrationManager {
                                 String newFlagName = mapProtectionFlag(flagName);
                                 if (newFlagName != null) {
                                     insertLandFlag(conn, landId, newFlagName);
-                                    logger.info("为领地 " + landIdentifier + " 启用保护规则: " + newFlagName);
+                                    logger.info("为领地 " + landName + " 启用保护规则: " + newFlagName);
                                 } else {
-                                    logger.warning("领地 " + landIdentifier + " 有未知的保护规则: " + flagName);
+                                    logger.warning("领地 " + landName + " 有未知的保护规则: " + flagName);
                                 }
                             }
                         }
@@ -464,7 +452,7 @@ public class MigrationManager {
 
                     // 每迁移10个领地报告一次进度
                     if (migratedCount % 10 == 0) {
-                        sender.sendMessage("§e[Easyland] 已迁移 " + migratedCount + " 个领地...");
+                        sender.sendMessage(i18nManager.getMessage("migrate.lands-progress", String.valueOf(migratedCount)));
                     }
 
                 } catch (Exception e) {
@@ -580,11 +568,12 @@ public class MigrationManager {
      * @param playerId 玩家ID
      */
     private void insertLandTrust(Connection conn, int landId, int playerId) throws SQLException {
-        String sql = "INSERT OR IGNORE INTO land_trusts (land_id, player_id) VALUES (?, ?)";
+        String sql = "INSERT OR IGNORE INTO land_trusts (land_id, player_id, trust_level) VALUES (?, ?, ?)";
 
         try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, landId);
             stmt.setInt(2, playerId);
+            stmt.setInt(3, 1); // 默认信任等级为1(成员)
             stmt.executeUpdate();
         }
     }
@@ -597,12 +586,12 @@ public class MigrationManager {
      * @param flagName 标记名称
      */
     private void insertLandFlag(Connection conn, int landId, String flagName) throws SQLException {
-        String sql = "INSERT OR IGNORE INTO land_flags (land_id, flag_name, is_enabled) VALUES (?, ?, ?)";
+        String sql = "INSERT OR IGNORE INTO land_flags (land_id, flag_name, flag_value) VALUES (?, ?, ?)";
 
         try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, landId);
             stmt.setString(2, flagName);
-            stmt.setBoolean(3, true);
+            stmt.setString(3, "true"); // 使用字符串存储标记值
             stmt.executeUpdate();
         }
     }

@@ -21,8 +21,13 @@ permission:
   no-rename: "§c土地の名前を変更する権限がありません。"
   no-subclaim: "§cサブクレームを作成する権限がありません。"
   no-select: "§c選択ツールを使用する権限がありません。"
-  admin-bypass: "§6[管理者] §e土地の保護をバイパスしました。"
+  admin-bypass: "§6[管理者] §e土地保護をバイパスしました。"
   admin-manage: "§6[管理者] §e他のプレイヤーの土地を管理しています。"
+
+# 土地を作成
+create:
+  success: "§a土地の作成に成功しました！ID: %s"
+  failed: "§c土地の作成に失敗しました。選択が有効か、他の土地と重なっていないか、制限を超えていないか確認してください。"
 
 # 土地の請求
 claim:
@@ -38,8 +43,12 @@ delete:
 list:
   empty: "§eまだ土地がありません。"
   all-lands: "すべての土地（サーバー全体）"
-  header: "§6=== %sの土地リスト ==="
-  item: "§e- 土地 %s (面積: %s ブロック)"
+  header: "§6=== %s の土地リスト ==="
+  item: "§e#%s §f%s §7| §bオーナー: §a%s §7| §d%s"
+  page-info: "§7ページ §e%s§7/§e%s§7 (合計: §e%s§7 の土地)"
+  page-simple: "§7ページ §e%s§7"
+  separator: "§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  next-page: "§7次のページを表示するには §e%s§7 を使用してください"
 
 # プレイヤーの信頼
 trust:
@@ -97,6 +106,11 @@ subclaim:
 # 選択ツール
 select:
   given: "§a土地選択ツールを入手しました！左クリックで最初の位置を設定、右クリックで2番目の位置を設定します。"
+  pos1-set: "§a最初の位置を設定しました: §e(%s, %s, %s)"
+  pos2-set: "§a2番目の位置を設定しました: §e(%s, %s, %s)"
+  selection-complete: "§a選択が完了しました！面積: §e%s §aブロック。 §e/el create §aで土地を作成してください。"
+  different-worlds: "§c両方の位置は同じワールドにある必要があります！"
+  incomplete: "§cまず選択ツールを使用して2つの位置を選択してください。"
 
 # ヘルプ
 help:
@@ -116,3 +130,28 @@ help:
   subclaim: "§e/el subclaim <parentLandId> - サブクレームを作成"
   reload: "§e/el reload - 設定を再読み込み"
   migrate: "§e/el migrate [confirm|cancel] - 旧YAMLファイルからSQLiteデータベースへデータを移行"
+
+# データ移行
+migrate:
+  warning: "§e[Easyland] §c警告: データ移行を実行しようとしています！"
+  warning-details: "§e[Easyland] §cこの操作により、旧YAMLファイルから新しいSQLiteデータベースへデータが移行されます。"
+  backup-reminder: "§e[Easyland] §c実行前にデータのバックアップを取ることをお勧めします。"
+  confirm-instruction: "§e[Easyland] §a§f/el migrate confirm §aと入力して移行を確認してください。"
+  cancel-instruction: "§e[Easyland] §a§f/el migrate cancel §aと入力して操作をキャンセルしてください。"
+  started: "§e[Easyland] データ移行を開始しています..."
+  checking-files: "§e[Easyland] 必要なファイルを確認しています..."
+  files-checked: "§a[Easyland] ファイルチェックが完了しました。"
+  migrating-config: "§e[Easyland] 設定ファイルを移行しています..."
+  config-migrated: "§a[Easyland] 設定ファイルの移行が完了しました。"
+  migrating-lands: "§e[Easyland] 土地データを移行しています..."
+  lands-migrated: "§a[Easyland] 土地データの移行が完了しました。%s個の土地を移行しました。"
+  lands-progress: "§e[Easyland] %s個の土地を移行しました..."
+  reloading-config: "§e[Easyland] 設定を再読み込みし、コンポーネントを再初期化しています..."
+  config-reloaded: "§a[Easyland] 設定の再読み込みが完了しました。"
+  success: "§a[Easyland] データ移行が正常に完了しました！所要時間: %s秒。"
+  success-short: "§a[Easyland] データ移行が正常に完了しました！"
+  failed: "§c[Easyland] データ移行に失敗しました。詳細についてはコンソールを確認してください。"
+  failed-with-reason: "§c[Easyland] 移行に失敗しました: %s"
+  failed-file-instruction: "§e[Easyland] 旧データファイルがoldfiles/フォルダに正しく配置されていることを確認してください。"
+  failed-check-console: "§e[Easyland] 詳細なエラー情報についてはコンソールを確認してください。"
+  cancelled: "§e[Easyland] データ移行がキャンセルされました。"

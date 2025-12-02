@@ -11,6 +11,8 @@ import io.github.railgun19457.easyland.listener.BlockProtectionListener;
 import io.github.railgun19457.easyland.listener.ContainerProtectionListener;
 import io.github.railgun19457.easyland.listener.ExplosionProtectionListener;
 import io.github.railgun19457.easyland.listener.PlayerProtectionListener;
+import io.github.railgun19457.easyland.listener.SelectionToolListener;
+import io.github.railgun19457.easyland.core.SelectionManager;
 import io.github.railgun19457.easyland.model.Land;
 import io.github.railgun19457.easyland.storage.DatabaseManager;
 import io.github.railgun19457.easyland.storage.LandDAO;
@@ -48,6 +50,7 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
     private LandManager landManager;
     private FlagManager flagManager;
     private LandVisualizer landVisualizer;
+    private SelectionManager selectionManager;
 
     @Override
     public void onEnable() {
@@ -151,6 +154,9 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         // 初始化可视化器
         landVisualizer = new LandVisualizer(this);
         
+        // 初始化选区管理器
+        selectionManager = new SelectionManager();
+        
         logger.info("管理器初始化完成。");
     }
 
@@ -175,6 +181,10 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         // 注册容器保护监听器
         getServer().getPluginManager().registerEvents(
             new ContainerProtectionListener(flagManager), this);
+        
+        // 注册选择工具监听器
+        getServer().getPluginManager().registerEvents(
+            new SelectionToolListener(this, selectionManager, i18nManager, permissionManager), this);
         
         logger.info("事件监听器注册完成。");
     }
@@ -254,6 +264,15 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
      */
     public LandCache getLandCache() {
         return landCache;
+    }
+    
+    /**
+     * 获取选区管理器。
+     *
+     * @return 选区管理器实例
+     */
+    public SelectionManager getSelectionManager() {
+        return selectionManager;
     }
 
     /**

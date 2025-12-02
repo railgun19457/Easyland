@@ -6,6 +6,7 @@ import io.github.railgun19457.easyland.storage.LandDAO;
 import org.bukkit.Location;
 
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -23,20 +24,31 @@ public class FlagManager {
     private PermissionManager permissionManager;
 
     /**
-     * FlagManager 构造函数。
-     *
-     * @param logger      插件日志记录器
-     * @param landManager 领地管理器
-     * @param landDAO     领地数据访问对象
-     * @param configManager 配置管理器
+     * 保护类型枚举。
+     * 定义不同类型的保护规则。
      */
-    public FlagManager(Logger logger, LandManager landManager, LandDAO landDAO, ConfigManager configManager) {
-        this.logger = logger;
-        this.landManager = landManager;
-        this.landDAO = landDAO;
-        this.configManager = configManager;
-        this.landCache = null; // Will be set later
+    public enum ProtectionType {
+        BLOCK,      // 方块保护（放置/破坏）
+        CONTAINER,  // 容器保护（交互/使用）
+        PLAYER,     // 玩家保护（PvP）
+        EXPLOSION,  // 爆炸保护
+        OTHER       // 其他类型
     }
+    
+    /**
+     * 标志到保护类型的静态映射。
+     */
+    private static final Map<LandFlag, ProtectionType> FLAG_PROTECTION_TYPES = Map.of(
+        LandFlag.BUILD, ProtectionType.BLOCK,
+        LandFlag.BREAK, ProtectionType.BLOCK,
+        LandFlag.INTERACT, ProtectionType.CONTAINER,
+        LandFlag.USE, ProtectionType.CONTAINER,
+        LandFlag.PVP, ProtectionType.PLAYER,
+        LandFlag.EXPLOSIONS, ProtectionType.EXPLOSION,
+        LandFlag.FIRE_SPREAD, ProtectionType.EXPLOSION,
+        LandFlag.ENTER, ProtectionType.OTHER,
+        LandFlag.MOB_SPAWNING, ProtectionType.OTHER
+    );
 
     /**
      * FlagManager 构造函数（带缓存支持）。
@@ -62,6 +74,16 @@ public class FlagManager {
      */
     public void setPermissionManager(PermissionManager permissionManager) {
         this.permissionManager = permissionManager;
+    }
+    
+    /**
+     * 获取标志的保护类型。
+     *
+     * @param flag 要检查的标志
+     * @return 保护类型
+     */
+    public static ProtectionType getProtectionType(LandFlag flag) {
+        return FLAG_PROTECTION_TYPES.getOrDefault(flag, ProtectionType.OTHER);
     }
 
     /**
@@ -128,22 +150,20 @@ public class FlagManager {
      * @return 标志的默认值
      */
     private boolean getDefaultFlagValue(LandFlag flag) {
-        // 从配置文件中读取默认值
-        switch (flag) {
-            case BUILD:
-            case BREAK:
+        // 使用保护类型映射来确定默认值
+        ProtectionType type = getProtectionType(flag);
+        
+        switch (type) {
+            case BLOCK:
                 return !configManager.isDefaultBlockProtection();
-            case INTERACT:
-            case USE:
+            case CONTAINER:
                 return !configManager.isDefaultContainerProtection();
-            case PVP:
+            case PLAYER:
                 return !configManager.isDefaultPlayerProtection();
-            case EXPLOSIONS:
-            case FIRE_SPREAD:
+            case EXPLOSION:
                 return !configManager.isDefaultExplosionProtection();
-            case ENTER:
-            case MOB_SPAWNING:
-                // 这些是允许标志，默认启用
+            case OTHER:
+                // 这些是允许标志，默认启用（如ENTER, MOB_SPAWNING）
                 return true;
             default:
                 return false;
@@ -208,20 +228,19 @@ public class FlagManager {
      * @return 如果保护规则启用返回 true，否则返回 false
      */
     private boolean isProtectionRuleEnabled(LandFlag flag) {
-        switch (flag) {
-            case BUILD:
-            case BREAK:
+        // 使用保护类型映射来确定服务器级别的保护规则
+        ProtectionType type = getProtectionType(flag);
+        
+        switch (type) {
+            case BLOCK:
                 return configManager.isBlockProtectionEnabled();
-            case INTERACT:
-            case USE:
+            case CONTAINER:
                 return configManager.isContainerProtectionEnabled();
-            case PVP:
+            case PLAYER:
                 return configManager.isPlayerProtectionEnabled();
-            case EXPLOSIONS:
-            case FIRE_SPREAD:
+            case EXPLOSION:
                 return configManager.isExplosionProtectionEnabled();
-            case ENTER:
-            case MOB_SPAWNING:
+            case OTHER:
                 // 这些标志不受服务器级开关控制，总是启用
                 return true;
             default:

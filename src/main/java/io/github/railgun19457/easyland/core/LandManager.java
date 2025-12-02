@@ -110,8 +110,12 @@ public class LandManager {
                 return null;
             }
 
-            // Create the land
-            Land land = new Land(pos1.getWorld().getName(), x1, z1, x2, z2, dbPlayer.getId());
+            // Create the land using Builder pattern
+            Land land = Land.builder()
+                .world(pos1.getWorld().getName())
+                .coordinates(x1, z1, x2, z2)
+                .ownerId(dbPlayer.getId())
+                .build();
             landDAO.createLand(land);
             
             // Invalidate cache for the affected area
@@ -357,10 +361,10 @@ public class LandManager {
      *
      * @param owner      The land owner
      * @param landId     The ID of the land
-     * @param targetPlayer The player to trust
+     * @param targetPlayer The player to trust (can be offline)
      * @return true if trusting was successful, false otherwise
      */
-    public boolean trustPlayer(org.bukkit.entity.Player owner, String landId, org.bukkit.entity.Player targetPlayer) {
+    public boolean trustPlayer(org.bukkit.entity.Player owner, String landId, org.bukkit.OfflinePlayer targetPlayer) {
         try {
             // 使用辅助方法验证领地所有权
             Land land = getAndVerifyLandOwner(owner, landId);
@@ -396,10 +400,10 @@ public class LandManager {
      *
      * @param owner      The land owner
      * @param landId     The ID of the land
-     * @param targetPlayer The player to untrust
+     * @param targetPlayer The player to untrust (can be offline)
      * @return true if untrusting was successful, false otherwise
      */
-    public boolean untrustPlayer(org.bukkit.entity.Player owner, String landId, org.bukkit.entity.Player targetPlayer) {
+    public boolean untrustPlayer(org.bukkit.entity.Player owner, String landId, org.bukkit.OfflinePlayer targetPlayer) {
         try {
             // 使用辅助方法验证领地所有权
             Land land = getAndVerifyLandOwner(owner, landId);
@@ -561,9 +565,13 @@ public class LandManager {
                 return null;
             }
 
-            // Create the sub-claim
-            Land subClaim = new Land(pos1.getWorld().getName(), x1, z1, x2, z2, dbPlayer.getId());
-            subClaim.setParentLandId(parentId);
+            // Create the sub-claim using Builder pattern
+            Land subClaim = Land.builder()
+                .world(pos1.getWorld().getName())
+                .coordinates(x1, z1, x2, z2)
+                .ownerId(dbPlayer.getId())
+                .parentLandId(parentId)
+                .build();
             landDAO.createLand(subClaim);
             
             // Invalidate cache for the affected area

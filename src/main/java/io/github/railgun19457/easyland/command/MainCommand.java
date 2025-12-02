@@ -3,6 +3,8 @@ package io.github.railgun19457.easyland.command;
 import io.github.railgun19457.easyland.EasyLand;
 import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.core.LandManager;
+import io.github.railgun19457.easyland.exception.MigrationFileNotFoundException;
+import io.github.railgun19457.easyland.migration.MigrationManager;
 import io.github.railgun19457.easyland.model.Land;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -14,7 +16,9 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 /**
  * EasyLand插件的主命令处理器。
@@ -26,6 +30,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     private final I18nManager i18nManager;
     private final LandManager landManager;
     private final io.github.railgun19457.easyland.core.PermissionManager permissionManager;
+    private final Logger logger;
+    private final MigrationManager migrationManager;
     
     // 子命令列表
     private static final List<String> SUBCOMMANDS = Arrays.asList(
@@ -42,6 +48,42 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         "block", "explosion", "container", "player"
     );
     
+    // 命令到权限的映射表（不包含 help 命令，因为它不需要权限）
+    private static final Map<String, String> COMMAND_PERMISSIONS = Map.ofEntries(
+        Map.entry("claim", "easyland.claim"),
+        Map.entry("delete", "easyland.delete"),
+        Map.entry("list", "easyland.list"),
+        Map.entry("trust", "easyland.trust"),
+        Map.entry("untrust", "easyland.trust"),
+        Map.entry("info", "easyland.info"),
+        Map.entry("create", "easyland.create"),
+        Map.entry("abandon", "easyland.abandon"),
+        Map.entry("show", "easyland.show"),
+        Map.entry("protection", "easyland.protection"),
+        Map.entry("reload", "easyland.admin"),
+        Map.entry("rename", "easyland.rename"),
+        Map.entry("subclaim", "easyland.subclaim"),
+        Map.entry("select", "easyland.select"),
+        Map.entry("migrate", "easyland.admin.migrate")
+    );
+    
+    // 帮助消息映射表：权限 -> 帮助消息键列表
+    private static final Map<String, List<String>> HELP_MESSAGES = Map.ofEntries(
+        Map.entry("easyland.select", List.of("help.select")),
+        Map.entry("easyland.create", List.of("help.create")),
+        Map.entry("easyland.claim", List.of("help.claim")),
+        Map.entry("easyland.abandon", List.of("help.abandon")),
+        Map.entry("easyland.delete", List.of("help.delete")),
+        Map.entry("easyland.info", List.of("help.info")),
+        Map.entry("easyland.list", List.of("help.list")),
+        Map.entry("easyland.show", List.of("help.show")),
+        Map.entry("easyland.trust", List.of("help.trust", "help.untrust")),
+        Map.entry("easyland.subclaim", List.of("help.subclaim")),
+        Map.entry("easyland.protection", List.of("help.protection")),
+        Map.entry("easyland.admin", List.of("help.reload")),
+        Map.entry("easyland.admin.migrate", List.of("help.migrate"))
+    );
+    
     /**
      * 构造函数。
      *
@@ -52,6 +94,42 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         this.i18nManager = plugin.getI18nManager();
         this.landManager = plugin.getLandManager();
         this.permissionManager = plugin.getPermissionManager();
+        this.logger = plugin.getLogger();
+        this.migrationManager = new MigrationManager(plugin);
+    }
+    
+    /**
+     * 检查玩家权限的辅助方法。
+     *
+     * @param player       玩家
+     * @param permission   权限节点
+     * @param errorMessage 错误消息的国际化键
+     * @return 如果有权限返回true，否则发送错误消息并返回false
+     */
+    private boolean checkPermission(Player player, String permission, String errorMessage) {
+        if (!permissionManager.hasPermission(player, permission)) {
+            player.sendMessage(i18nManager.getMessage(errorMessage));
+            return false;
+        }
+        return true;
+    }
+    
+    /**
+     * 验证命令参数的辅助方法。
+     *
+     * @param player      玩家
+     * @param args        命令参数
+     * @param minArgs     最小参数数量
+     * @param usageKey    用法消息的国际化键
+     * @param commandName 命令名称
+     * @return 如果参数有效返回true，否则发送用法消息并返回false
+     */
+    private boolean validateArgs(Player player, String[] args, int minArgs, String usageKey, String commandName) {
+        if (args.length < minArgs) {
+            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " " + usageKey));
+            return false;
+        }
+        return true;
     }
     
     @Override
@@ -173,13 +251,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理claim命令。
      */
     private void handleClaim(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.claim")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-claim"));
+        if (!checkPermission(player, "easyland.claim", "permission.no-claim")) {
             return;
         }
         
-        if (args.length < 2) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " claim <landId>"));
+        if (!validateArgs(player, args, 2, "claim <landId>", commandName)) {
             return;
         }
         
@@ -197,13 +273,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理delete命令。
      */
     private void handleDelete(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.delete")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-delete"));
+        if (!checkPermission(player, "easyland.delete", "permission.no-delete")) {
             return;
         }
         
-        if (args.length < 2) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " delete <landId>"));
+        if (!validateArgs(player, args, 2, "delete <landId>", commandName)) {
             return;
         }
         
@@ -221,8 +295,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理list命令。
      */
     private void handleList(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.list")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-list"));
+        if (!checkPermission(player, "easyland.list", "permission.no-list")) {
             return;
         }
         
@@ -278,34 +351,39 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         if (permissionManager.isAdmin(player) && totalLands > 0) {
             // 管理员显示详细分页信息
             int totalPages = (int) Math.ceil((double) totalLands / perPage);
-            player.sendMessage("§7第 §e" + page + "§7/§e" + totalPages + "§7 页 (共 §e" + totalLands + "§7 个领地)");
+            player.sendMessage(i18nManager.getMessage("list.page-info", String.valueOf(page), String.valueOf(totalPages), String.valueOf(totalLands)));
         } else {
             // 普通玩家显示简单的页码
-            player.sendMessage("§7第 §e" + page + "§7 页");
+            player.sendMessage(i18nManager.getMessage("list.page-simple", String.valueOf(page)));
         }
         
-        player.sendMessage("§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        player.sendMessage(i18nManager.getMessage("list.separator"));
         
         for (Land land : lands) {
-            String ownerInfo = "";
-            if (permissionManager.isAdmin(player)) {
-                // 管理员可以看到领地主人
-                ownerInfo = " §7- §6所有者ID: §e" + land.getOwnerId();
-            }
+            // 获取领地主人名称
+            String ownerName = getOwnerName(land.getOwnerId());
+            
+            // 格式: 领地ID | 主人名称 | 坐标
+            String landName = land.getName() != null ? land.getName() : "ID:" + land.getId();
+            String coords = String.format("(%d, %d) - (%d, %d)", 
+                land.getX1(), land.getZ1(), land.getX2(), land.getZ2());
+            
             player.sendMessage(i18nManager.getMessage("list.item", 
-                "ID:" + land.getId(), 
-                calculateArea(land)) + ownerInfo);
+                String.valueOf(land.getId()),
+                landName,
+                ownerName,
+                coords));
         }
         
         // 显示下一页提示（仅对管理员且有足够领地时）
         if (permissionManager.isAdmin(player) && totalLands > 0) {
             int totalPages = (int) Math.ceil((double) totalLands / perPage);
             if (page < totalPages) {
-                player.sendMessage("§7使用 §e/" + commandName + " list " + (page + 1) + "§7 查看下一页");
+                player.sendMessage(i18nManager.getMessage("list.next-page", "/" + commandName + " list " + (page + 1)));
             }
         } else if (lands.size() >= perPage) {
             // 普通玩家，如果当前页满了，提示可能还有下一页
-            player.sendMessage("§7使用 §e/" + commandName + " list " + (page + 1) + "§7 查看下一页");
+            player.sendMessage(i18nManager.getMessage("list.next-page", "/" + commandName + " list " + (page + 1)));
         }
     }
     
@@ -313,13 +391,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理trust命令。
      */
     private void handleTrust(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.trust")) {
-            player.sendMessage(i18nManager.getMessage("trust.no-permission"));
+        if (!checkPermission(player, "easyland.trust", "trust.no-permission")) {
             return;
         }
         
-        if (args.length < 3) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " trust <landId> <player>"));
+        if (!validateArgs(player, args, 3, "trust <landId> <player>", commandName)) {
             return;
         }
         
@@ -332,11 +408,16 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
         
-        // 获取目标玩家
-        Player targetPlayer = plugin.getServer().getPlayer(targetPlayerName);
+        // 尝试获取在线玩家，如果不在线则获取离线玩家
+        org.bukkit.OfflinePlayer targetPlayer = plugin.getServer().getPlayer(targetPlayerName);
         if (targetPlayer == null) {
-            player.sendMessage(i18nManager.getMessage("trust.invalid-name"));
-            return;
+            // 尝试获取离线玩家
+            targetPlayer = plugin.getServer().getOfflinePlayer(targetPlayerName);
+            // 检查该玩家是否曾经在服务器上玩过
+            if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline()) {
+                player.sendMessage(i18nManager.getMessage("trust.invalid-name"));
+                return;
+            }
         }
         
         boolean success = landManager.trustPlayer(player, landId, targetPlayer);
@@ -352,24 +433,27 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理untrust命令。
      */
     private void handleUntrust(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.trust")) {
-            player.sendMessage(i18nManager.getMessage("trust.untrust-no-permission"));
+        if (!checkPermission(player, "easyland.trust", "trust.untrust-no-permission")) {
             return;
         }
         
-        if (args.length < 3) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " untrust <landId> <player>"));
+        if (!validateArgs(player, args, 3, "untrust <landId> <player>", commandName)) {
             return;
         }
         
         String landId = args[1];
         String targetPlayerName = args[2];
         
-        // 获取目标玩家
-        Player targetPlayer = plugin.getServer().getPlayer(targetPlayerName);
+        // 尝试获取在线玩家，如果不在线则获取离线玩家
+        org.bukkit.OfflinePlayer targetPlayer = plugin.getServer().getPlayer(targetPlayerName);
         if (targetPlayer == null) {
-            player.sendMessage(i18nManager.getMessage("trust.invalid-name"));
-            return;
+            // 尝试获取离线玩家
+            targetPlayer = plugin.getServer().getOfflinePlayer(targetPlayerName);
+            // 检查该玩家是否曾经在服务器上玩过
+            if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline()) {
+                player.sendMessage(i18nManager.getMessage("trust.invalid-name"));
+                return;
+            }
         }
         
         boolean success = landManager.untrustPlayer(player, landId, targetPlayer);
@@ -385,8 +469,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理info命令。
      */
     private void handleInfo(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.info")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-info"));
+        if (!checkPermission(player, "easyland.info", "permission.no-info")) {
             return;
         }
         
@@ -429,39 +512,57 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
         
         player.sendMessage(i18nManager.getMessage("info.world", land.getWorld()));
-        player.sendMessage(i18nManager.getMessage("info.chunks", calculateArea(land)));
+        player.sendMessage(i18nManager.getMessage("info.chunks", String.valueOf(calculateArea(land))));
     }
     
     /**
      * 处理create命令。
      */
     private void handleCreate(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.admin")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-create"));
+        if (!checkPermission(player, "easyland.create", "permission.no-create")) {
             return;
         }
         
-        if (args.length < 2) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " create <landId>"));
+        // 检查玩家是否有完整的选区
+        io.github.railgun19457.easyland.core.SelectionManager selectionManager = plugin.getSelectionManager();
+        if (!selectionManager.hasCompleteSelection(player)) {
+            player.sendMessage(i18nManager.getMessage("select.incomplete"));
             return;
         }
         
-        // 这里需要实现创建领地的逻辑
-        // 由于LandManager中没有直接创建领地的方法，我们需要添加一个
-        player.sendMessage("创建领地功能尚未完全实现");
+        // 检查选区是否在同一个世界
+        if (!selectionManager.isSelectionInSameWorld(player)) {
+            player.sendMessage(i18nManager.getMessage("select.different-worlds"));
+            return;
+        }
+        
+        // 获取选区位置
+        Location pos1 = selectionManager.getPos1(player);
+        Location pos2 = selectionManager.getPos2(player);
+        
+        // 创建领地
+        Land land = landManager.createLand(player, pos1, pos2);
+        
+        if (land != null) {
+            player.sendMessage(i18nManager.getMessage("create.success", String.valueOf(land.getId())));
+            // 显示领地边界
+            plugin.getLandVisualizer().showLandBoundary(player, land, 10);
+            // 清除选区
+            selectionManager.clearSelection(player);
+        } else {
+            player.sendMessage(i18nManager.getMessage("create.failed"));
+        }
     }
     
     /**
      * 处理abandon命令。
      */
     private void handleAbandon(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.abandon")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-abandon"));
+        if (!checkPermission(player, "easyland.abandon", "permission.no-abandon")) {
             return;
         }
         
-        if (args.length < 2) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " abandon <landId>"));
+        if (!validateArgs(player, args, 2, "abandon <landId>", commandName)) {
             return;
         }
         
@@ -479,8 +580,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理show命令。
      */
     private void handleShow(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.show")) {
-            player.sendMessage(i18nManager.getMessage("show.no-permission"));
+        if (!checkPermission(player, "easyland.show", "show.no-permission")) {
             return;
         }
         
@@ -489,7 +589,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             try {
                 duration = Integer.parseInt(args[1]);
                 if (duration < 1) {
-                    player.sendMessage(i18nManager.getMessage("show.invalid-duration", plugin.getConfig().getInt("visualization.max-duration", 60)));
+                    player.sendMessage(i18nManager.getMessage("show.invalid-duration", String.valueOf(plugin.getConfig().getInt("visualization.max-duration", 60))));
                     return;
                 }
             } catch (NumberFormatException e) {
@@ -507,15 +607,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         
         // Show the land boundary
         plugin.getLandVisualizer().showLandBoundary(player, land, duration);
-        player.sendMessage(i18nManager.getMessage("show.success", duration));
+        player.sendMessage(i18nManager.getMessage("show.success", String.valueOf(duration)));
     }
     
     /**
      * 处理protection命令。
      */
     private void handleProtection(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.protection")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-protection"));
+        if (!checkPermission(player, "easyland.protection", "permission.no-protection")) {
             return;
         }
         
@@ -524,7 +623,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(i18nManager.getMessage("rule.status-header"));
             for (String rule : PROTECTION_RULES) {
                 // 这里需要获取实际的保护状态
-                player.sendMessage(i18nManager.getMessage("rule.status-enabled", rule, ""));
+                player.sendMessage(i18nManager.getMessage("rule.status-enabled", rule));
             }
             player.sendMessage(i18nManager.getMessage("rule.usage-tip"));
             return;
@@ -548,19 +647,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理reload命令。
      */
     private void handleReload(CommandSender sender) {
-        // 如果是玩家，使用PermissionManager检查权限
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-            if (!permissionManager.hasPermission(player, "easyland.admin")) {
-                sender.sendMessage(i18nManager.getMessage("general.no-permission"));
-                return;
-            }
-        } else {
-            // 控制台直接检查权限
-            if (!sender.hasPermission("easyland.admin")) {
-                sender.sendMessage(i18nManager.getMessage("general.no-permission"));
-                return;
-            }
+        // 统一的权限检查逻辑
+        boolean hasPermission = (sender instanceof Player p) 
+            ? permissionManager.hasPermission(p, "easyland.admin") 
+            : sender.hasPermission("easyland.admin");
+        
+        if (!hasPermission) {
+            sender.sendMessage(i18nManager.getMessage("general.no-permission"));
+            return;
         }
         
         // 重新加载配置
@@ -574,13 +668,16 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理rename命令。
      */
     private void handleRename(Player player, String[] args, String commandName) {
-        if (!player.hasPermission("easyland.rename") && !player.hasPermission("easyland.admin")) {
+        // 检查是否有 rename 或 admin 权限
+        boolean hasRenamePermission = permissionManager.hasPermission(player, "easyland.rename");
+        boolean hasAdminPermission = permissionManager.hasPermission(player, "easyland.admin");
+        
+        if (!hasRenamePermission && !hasAdminPermission) {
             player.sendMessage(i18nManager.getMessage("permission.no-rename"));
             return;
         }
         
-        if (args.length < 3) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " rename <landId> <newName>"));
+        if (!validateArgs(player, args, 3, "rename <landId> <newName>", commandName)) {
             return;
         }
         
@@ -605,27 +702,32 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 处理subclaim命令。
      */
     private void handleSubClaim(Player player, String[] args, String commandName) {
-        if (!player.hasPermission("easyland.subclaim")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-subclaim"));
+        if (!checkPermission(player, "easyland.subclaim", "permission.no-subclaim")) {
             return;
         }
         
-        if (args.length < 2) {
-            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " subclaim <parentLandId>"));
+        if (!validateArgs(player, args, 2, "subclaim <parentLandId>", commandName)) {
             return;
         }
         
         String parentLandId = args[1];
         
-        // 使用玩家当前位置周围的小区域作为子领地
-        // 这是一个简化的实现，实际应用中应该使用选择工具
-        Location playerLoc = player.getLocation();
-        int radius = 5; // 5格半径
+        // 检查玩家是否有完整的选区
+        io.github.railgun19457.easyland.core.SelectionManager selectionManager = plugin.getSelectionManager();
+        if (!selectionManager.hasCompleteSelection(player)) {
+            player.sendMessage(i18nManager.getMessage("select.incomplete"));
+            return;
+        }
         
-        Location pos1 = new Location(playerLoc.getWorld(),
-            playerLoc.getBlockX() - radius, playerLoc.getBlockY(), playerLoc.getBlockZ() - radius);
-        Location pos2 = new Location(playerLoc.getWorld(),
-            playerLoc.getBlockX() + radius, playerLoc.getBlockY(), playerLoc.getBlockZ() + radius);
+        // 检查选区是否在同一个世界
+        if (!selectionManager.isSelectionInSameWorld(player)) {
+            player.sendMessage(i18nManager.getMessage("select.different-worlds"));
+            return;
+        }
+        
+        // 获取选区位置
+        Location pos1 = selectionManager.getPos1(player);
+        Location pos2 = selectionManager.getPos2(player);
         
         Land subClaim = landManager.createSubClaim(player, parentLandId, pos1, pos2);
         
@@ -633,6 +735,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(i18nManager.getMessage("subclaim.success", String.valueOf(subClaim.getId())));
             // 显示子领地边界
             plugin.getLandVisualizer().showLandBoundary(player, subClaim, 10);
+            // 清除选区
+            selectionManager.clearSelection(player);
         } else {
             player.sendMessage(i18nManager.getMessage("subclaim.failed"));
         }
@@ -647,15 +751,51 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
         
-        // 创建迁移命令处理器
-        MigrateCommand migrateCommand = new MigrateCommand(plugin);
-        
-        // 将参数传递给迁移命令处理器
-        String[] migrateArgs = new String[args.length - 1];
-        System.arraycopy(args, 1, migrateArgs, 0, migrateArgs.length);
-        
-        // 执行迁移命令
-        migrateCommand.onCommand(sender, null, "migrate", migrateArgs);
+        // 如果有参数，处理确认或取消
+        if (args.length > 1) {
+            String action = args[1].toLowerCase();
+            
+            if (action.equals("confirm")) {
+                try {
+                    // 使用可复用的MigrationManager实例执行迁移
+                    boolean success = migrationManager.runMigration(sender);
+                    
+                    if (success) {
+                        sender.sendMessage(i18nManager.getMessage("migrate.success-short"));
+                        logger.info("数据迁移成功完成，由 " + sender.getName() + " 执行。");
+                    } else {
+                        sender.sendMessage(i18nManager.getMessage("migrate.failed"));
+                        logger.warning("数据迁移失败，由 " + sender.getName() + " 执行。");
+                    }
+                } catch (Exception e) {
+                    // 特别处理文件不存在的情况
+                    if (e.getCause() instanceof MigrationFileNotFoundException) {
+                        MigrationFileNotFoundException ex = (MigrationFileNotFoundException) e.getCause();
+                        sender.sendMessage(i18nManager.getMessage("migrate.failed-with-reason", ex.getMessage()));
+                        sender.sendMessage(i18nManager.getMessage("migrate.failed-file-instruction"));
+                        logger.warning("迁移失败，由 " + sender.getName() + " 执行。缺失文件: " + ex.getFileName());
+                    } else {
+                        sender.sendMessage(i18nManager.getMessage("migrate.failed-with-reason", e.getMessage()));
+                        sender.sendMessage(i18nManager.getMessage("migrate.failed-check-console"));
+                        logger.severe("数据迁移失败，由 " + sender.getName() + " 执行: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                
+            } else if (action.equals("cancel")) {
+                sender.sendMessage(i18nManager.getMessage("migrate.cancelled"));
+                
+            } else {
+                sender.sendMessage(i18nManager.getMessage("general.invalid-args", "/el migrate [confirm|cancel]"));
+            }
+        } else {
+            // 没有参数时，显示确认信息
+            sender.sendMessage(i18nManager.getMessage("migrate.warning"));
+            sender.sendMessage(i18nManager.getMessage("migrate.warning-details"));
+            sender.sendMessage(i18nManager.getMessage("migrate.backup-reminder"));
+            sender.sendMessage(i18nManager.getMessage("migrate.confirm-instruction"));
+            sender.sendMessage(i18nManager.getMessage("migrate.cancel-instruction"));
+        }
     }
     
     /**
@@ -664,62 +804,21 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     private void showHelp(CommandSender sender, String commandName) {
         sender.sendMessage(i18nManager.getMessage("help.header"));
         
-        // 根据权限显示不同的命令
-        if (sender.hasPermission("easyland.select")) {
-            sender.sendMessage(i18nManager.getMessage("help.select"));
-        }
-        
-        if (sender.hasPermission("easyland.create")) {
-            sender.sendMessage(i18nManager.getMessage("help.create"));
-        }
-        
-        if (sender.hasPermission("easyland.claim")) {
-            sender.sendMessage(i18nManager.getMessage("help.claim"));
-        }
-        
-        if (sender.hasPermission("easyland.abandon")) {
-            sender.sendMessage(i18nManager.getMessage("help.abandon"));
-        }
-        
-        if (sender.hasPermission("easyland.delete")) {
-            sender.sendMessage(i18nManager.getMessage("help.delete"));
-        }
-        
-        if (sender.hasPermission("easyland.info")) {
-            sender.sendMessage(i18nManager.getMessage("help.info"));
-        }
-        
-        if (sender.hasPermission("easyland.list")) {
-            sender.sendMessage(i18nManager.getMessage("help.list"));
-        }
-        
-        if (sender.hasPermission("easyland.show")) {
-            sender.sendMessage(i18nManager.getMessage("help.show"));
-        }
-        
-        if (sender.hasPermission("easyland.trust")) {
-            sender.sendMessage(i18nManager.getMessage("help.trust"));
-            sender.sendMessage(i18nManager.getMessage("help.untrust"));
-        }
-        
-        if (sender.hasPermission("easyland.rename") || sender.hasPermission("easyland.admin")) {
-            sender.sendMessage(i18nManager.getMessage("help.rename"));
-        }
-        
-        if (sender.hasPermission("easyland.subclaim")) {
-            sender.sendMessage(i18nManager.getMessage("help.subclaim"));
-        }
-        
-        if (sender.hasPermission("easyland.protection")) {
-            sender.sendMessage(i18nManager.getMessage("help.protection"));
-        }
-        
-        if (sender.hasPermission("easyland.admin")) {
-            sender.sendMessage(i18nManager.getMessage("help.reload"));
-        }
-        
-        if (sender.hasPermission("easyland.admin.migrate")) {
-            sender.sendMessage(i18nManager.getMessage("help.migrate"));
+        // 使用映射表循环显示帮助消息
+        for (Map.Entry<String, List<String>> entry : HELP_MESSAGES.entrySet()) {
+            String permission = entry.getKey();
+            // 特殊处理rename需要admin或rename权限
+            if (permission.equals("easyland.rename")) {
+                if (sender.hasPermission("easyland.rename") || sender.hasPermission("easyland.admin")) {
+                    for (String messageKey : entry.getValue()) {
+                        sender.sendMessage(i18nManager.getMessage(messageKey));
+                    }
+                }
+            } else if (sender.hasPermission(permission)) {
+                for (String messageKey : entry.getValue()) {
+                    sender.sendMessage(i18nManager.getMessage(messageKey));
+                }
+            }
         }
     }
     
@@ -853,49 +952,27 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 检查发送者是否有执行特定命令的权限。
      */
     private boolean hasPermissionForCommand(CommandSender sender, String command) {
-        switch (command) {
-            case "claim":
-                return sender.hasPermission("easyland.claim");
-            case "delete":
-                return sender.hasPermission("easyland.delete");
-            case "list":
-                return sender.hasPermission("easyland.list");
-            case "trust":
-            case "untrust":
-                return sender.hasPermission("easyland.trust");
-            case "info":
-                return sender.hasPermission("easyland.info");
-            case "help":
-                return true; // 帮助命令不需要特殊权限
-            case "create":
-                return sender.hasPermission("easyland.admin");
-            case "abandon":
-                return sender.hasPermission("easyland.abandon");
-            case "show":
-                return sender.hasPermission("easyland.show");
-            case "protection":
-                return sender.hasPermission("easyland.protection");
-            case "reload":
-                return sender.hasPermission("easyland.admin");
-            case "rename":
-                return sender.hasPermission("easyland.rename") || sender.hasPermission("easyland.admin");
-            case "subclaim":
-                return sender.hasPermission("easyland.subclaim");
-            case "select":
-                return sender.hasPermission("easyland.select");
-            case "migrate":
-                return sender.hasPermission("easyland.admin.migrate");
-            default:
-                return false;
+        // 使用映射表查找权限
+        String permission = COMMAND_PERMISSIONS.get(command);
+        
+        // help命令不需要权限（null表示不需要权限）
+        if (permission == null) {
+            return true;
         }
+        
+        // rename需要特殊处理：rename或admin权限都可以
+        if (command.equals("rename")) {
+            return sender.hasPermission("easyland.rename") || sender.hasPermission("easyland.admin");
+        }
+        
+        return sender.hasPermission(permission);
     }
     
     /**
      * 处理select命令。
      */
     private void handleSelect(Player player, String[] args, String commandName) {
-        if (!permissionManager.hasPermission(player, "easyland.select")) {
-            player.sendMessage(i18nManager.getMessage("permission.no-select"));
+        if (!checkPermission(player, "easyland.select", "permission.no-select")) {
             return;
         }
         
@@ -972,5 +1049,24 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             // 忽略错误，返回空列表
         }
         return landIds;
+    }
+    
+    /**
+     * 根据玩家ID获取玩家名称。
+     *
+     * @param ownerId 玩家数据库ID
+     * @return 玩家名称，如果找不到则返回 "未知"
+     */
+    private String getOwnerName(int ownerId) {
+        try {
+            Optional<io.github.railgun19457.easyland.model.Player> playerOpt = 
+                plugin.getPlayerDAO().getPlayerById(ownerId);
+            if (playerOpt.isPresent()) {
+                return playerOpt.get().getName();
+            }
+        } catch (Exception e) {
+            logger.warning("Failed to get owner name for ID " + ownerId + ": " + e.getMessage());
+        }
+        return "未知";
     }
 }

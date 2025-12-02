@@ -6,7 +6,6 @@ import org.bukkit.Location;
 //import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 import java.util.Iterator;
@@ -15,8 +14,7 @@ import java.util.List;
 /**
  * 监听爆炸事件，实现领地爆炸保护。
  */
-public class ExplosionProtectionListener implements Listener {
-    private final FlagManager flagManager;
+public class ExplosionProtectionListener extends BaseProtectionListener {
 
     /**
      * ExplosionProtectionListener 构造函数。
@@ -24,7 +22,7 @@ public class ExplosionProtectionListener implements Listener {
      * @param flagManager 标志管理器
      */
     public ExplosionProtectionListener(FlagManager flagManager) {
-        this.flagManager = flagManager;
+        super(flagManager);
     }
 
     /**
@@ -36,7 +34,7 @@ public class ExplosionProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityExplode(EntityExplodeEvent event) {
         // 如果事件已被取消，则不处理
-        if (event.isCancelled()) {
+        if (isEventCancelled(event)) {
             return;
         }
 

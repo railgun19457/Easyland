@@ -24,6 +24,30 @@ public class PermissionManager {
         this.playerDAO = playerDAO;
         this.landTrustDAO = landTrustDAO;
     }
+    
+    /**
+     * 通用领地权限检查方法。
+     * 检查玩家是否有权限操作领地。
+     *
+     * @param player       玩家
+     * @param land         领地
+     * @param requireOwner 是否要求必须是所有者（true表示只有所有者或管理员可以操作）
+     * @return true如果有权限，否则false
+     */
+    public boolean checkLandPermission(Player player, Land land, boolean requireOwner) {
+        // 管理员始终有权限
+        if (isAdmin(player)) {
+            return true;
+        }
+        
+        // 如果需要所有者权限，只检查是否是所有者
+        if (requireOwner) {
+            return isLandOwner(player, land);
+        }
+        
+        // 否则检查是否是所有者或受信任玩家
+        return hasLandPermission(player, land, "general");
+    }
 
     /**
      * 检查玩家是否有权限管理领地（所有者或管理员）
@@ -33,13 +57,7 @@ public class PermissionManager {
      * @return true如果玩家有权限，否则false
      */
     public boolean canManageLand(Player player, Land land) {
-        // 管理员可以管理所有领地
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 检查是否是领地所有者
-        return isLandOwner(player, land);
+        return checkLandPermission(player, land, true);
     }
 
     /**
@@ -157,13 +175,7 @@ public class PermissionManager {
      * @return true如果可以删除，否则false
      */
     public boolean canDeleteLand(Player player, Land land) {
-        // 管理员可以删除任何领地
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 普通玩家只能删除自己的领地
-        return isLandOwner(player, land);
+        return checkLandPermission(player, land, true);
     }
 
     /**
@@ -174,13 +186,7 @@ public class PermissionManager {
      * @return true如果可以修改，否则false
      */
     public boolean canModifyTrust(Player player, Land land) {
-        // 管理员可以修改任何领地的信任列表
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 只有领地所有者可以修改信任列表
-        return isLandOwner(player, land);
+        return checkLandPermission(player, land, true);
     }
 
     /**
@@ -192,18 +198,8 @@ public class PermissionManager {
      * @return true如果可以查看，否则false
      */
     public boolean canViewLandInfo(Player player, Land land) {
-        // 管理员可以查看所有领地
-        if (isAdmin(player)) {
-            return true;
-        }
-
         // 如果没有指定领地，普通玩家可以查看列表
-        if (land == null) {
-            return true;
-        }
-
-        // 检查是否是所有者或受信任玩家
-        return hasLandPermission(player, land, "info");
+        return land == null || checkLandPermission(player, land, false);
     }
 
     /**
@@ -214,13 +210,7 @@ public class PermissionManager {
      * @return true如果可以修改，否则false
      */
     public boolean canModifyProtection(Player player, Land land) {
-        // 管理员可以修改任何领地的保护规则
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 只有领地所有者可以修改保护规则
-        return isLandOwner(player, land);
+        return checkLandPermission(player, land, true);
     }
 
     /**
@@ -231,13 +221,7 @@ public class PermissionManager {
      * @return true如果可以重命名，否则false
      */
     public boolean canRenameLand(Player player, Land land) {
-        // 管理员可以重命名任何领地
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 只有领地所有者可以重命名
-        return isLandOwner(player, land);
+        return checkLandPermission(player, land, true);
     }
 
     /**
@@ -248,12 +232,6 @@ public class PermissionManager {
      * @return true如果可以创建，否则false
      */
     public boolean canCreateSubClaim(Player player, Land parentLand) {
-        // 管理员可以在任何领地创建子领地
-        if (isAdmin(player)) {
-            return true;
-        }
-
-        // 检查是否有权限（所有者或受信任玩家）
-        return hasLandPermission(player, parentLand, "subclaim");
+        return checkLandPermission(player, parentLand, false);
     }
 }

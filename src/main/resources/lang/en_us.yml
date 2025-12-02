@@ -24,6 +24,11 @@ permission:
   admin-bypass: "§6[Admin] §eYou bypassed land protection."
   admin-manage: "§6[Admin] §eYou are managing another player's land."
 
+# Create Land
+create:
+  success: "§aSuccessfully created land! ID: %s"
+  failed: "§cFailed to create land. Please check if the selection is valid, overlaps with other lands, or exceeds limits."
+
 # Claim Land
 claim:
   success: "§aSuccessfully claimed land!"
@@ -39,7 +44,11 @@ list:
   empty: "§eYou don't have any lands yet."
   all-lands: "All Lands (Server-wide)"
   header: "§6=== %s's Land List ==="
-  item: "§e- Land %s (Area: %s blocks)"
+  item: "§e#%s §f%s §7| §bOwner: §a%s §7| §d%s"
+  page-info: "§7Page §e%s§7/§e%s§7 (Total: §e%s§7 lands)"
+  page-simple: "§7Page §e%s§7"
+  separator: "§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  next-page: "§7Use §e%s§7 to view next page"
 
 # Trust Player
 trust:
@@ -97,6 +106,11 @@ subclaim:
 # Selection Tool
 select:
   given: "§aYou have been given the land selection tool! Left-click to set first position, right-click to set second position."
+  pos1-set: "§aFirst position set: §e(%s, %s, %s)"
+  pos2-set: "§aSecond position set: §e(%s, %s, %s)"
+  selection-complete: "§aSelection complete! Area: §e%s §ablocks. Use §e/el create §ato create the land."
+  different-worlds: "§cBoth positions must be in the same world!"
+  incomplete: "§cPlease select two positions using the selection tool first."
 
 # Help
 help:
@@ -116,3 +130,28 @@ help:
   subclaim: "§e/el subclaim <parentLandId> - Create sub-claim"
   reload: "§e/el reload - Reload configuration"
   migrate: "§e/el migrate [confirm|cancel] - Migrate data from old YAML files to SQLite database"
+
+# Data Migration
+migrate:
+  warning: "§e[Easyland] §cWarning: You are about to perform a data migration!"
+  warning-details: "§e[Easyland] §cThis will migrate data from old YAML files to the new SQLite database."
+  backup-reminder: "§e[Easyland] §cIt is recommended to backup your data before proceeding."
+  confirm-instruction: "§e[Easyland] §aType §f/el migrate confirm §ato confirm the migration."
+  cancel-instruction: "§e[Easyland] §aType §f/el migrate cancel §ato cancel the operation."
+  started: "§e[Easyland] Starting data migration..."
+  checking-files: "§e[Easyland] Checking required files..."
+  files-checked: "§a[Easyland] File check completed."
+  migrating-config: "§e[Easyland] Migrating configuration files..."
+  config-migrated: "§a[Easyland] Configuration migration completed."
+  migrating-lands: "§e[Easyland] Migrating land data..."
+  lands-migrated: "§a[Easyland] Land data migration completed. Migrated %s lands."
+  lands-progress: "§e[Easyland] Migrated %s lands..."
+  reloading-config: "§e[Easyland] Reloading configuration and reinitializing components..."
+  config-reloaded: "§a[Easyland] Configuration reload completed."
+  success: "§a[Easyland] Data migration completed successfully! Time taken: %s seconds."
+  success-short: "§a[Easyland] Data migration completed successfully!"
+  failed: "§c[Easyland] Data migration failed. Please check the console for details."
+  failed-with-reason: "§c[Easyland] Migration failed: %s"
+  failed-file-instruction: "§e[Easyland] Please ensure old data files are correctly placed in the oldfiles/ folder."
+  failed-check-console: "§e[Easyland] Please check the console for detailed error information."
+  cancelled: "§e[Easyland] Data migration cancelled."

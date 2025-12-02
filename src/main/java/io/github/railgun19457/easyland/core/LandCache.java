@@ -217,24 +217,32 @@ public class LandCache {
     }
     
     /**
+     * 通用缓存清理方法。
+     * 移除指定缓存的一半条目。
+     *
+     * @param cache     要清理的缓存映射
+     * @param cacheName 缓存名称（用于日志记录）
+     * @param <K>       键类型
+     * @param <V>       值类型
+     */
+    private <K, V> void cleanupCache(Map<K, V> cache, String cacheName) {
+        int toRemove = cache.size() / 2;
+        cache.keySet().stream().limit(toRemove).forEach(cache::remove);
+        logger.info("清理了 " + toRemove + " 个" + cacheName + "条目");
+    }
+    
+    /**
      * 清理区块缓存，移除最旧的条目。
      */
     private void cleanupChunkCache() {
-        // 简单的清理策略：移除一半的缓存
-        // 在实际应用中，可以考虑使用LRU等更复杂的策略
-        int toRemove = chunkCache.size() / 2;
-        chunkCache.keySet().stream().limit(toRemove).forEach(chunkCache::remove);
-        logger.info("清理了 " + toRemove + " 个区块缓存条目");
+        cleanupCache(chunkCache, "区块缓存");
     }
     
     /**
      * 清理领地缓存，移除最旧的条目。
      */
     private void cleanupLandCache() {
-        // 简单的清理策略：移除一半的缓存
-        int toRemove = landCache.size() / 2;
-        landCache.keySet().stream().limit(toRemove).forEach(landCache::remove);
-        logger.info("清理了 " + toRemove + " 个领地缓存条目");
+        cleanupCache(landCache, "领地缓存");
     }
     
     /**

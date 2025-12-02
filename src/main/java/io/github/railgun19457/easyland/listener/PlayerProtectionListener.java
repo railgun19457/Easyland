@@ -6,14 +6,12 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 
 /**
  * 监听玩家伤害事件，实现领地 PvP 保护。
  */
-public class PlayerProtectionListener implements Listener {
-    private final FlagManager flagManager;
+public class PlayerProtectionListener extends BaseProtectionListener {
 
     /**
      * PlayerProtectionListener 构造函数。
@@ -21,7 +19,7 @@ public class PlayerProtectionListener implements Listener {
      * @param flagManager 标志管理器
      */
     public PlayerProtectionListener(FlagManager flagManager) {
-        this.flagManager = flagManager;
+        super(flagManager);
     }
 
     /**
@@ -33,7 +31,7 @@ public class PlayerProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         // 如果事件已被取消，则不处理
-        if (event.isCancelled()) {
+        if (isEventCancelled(event)) {
             return;
         }
 

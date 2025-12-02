@@ -55,12 +55,12 @@ public class I18nManager {
             langFolder.mkdirs();
         }
 
-        // Load built-in language files from resources
-        loadLanguageFromResource("zh_cn");
-        loadLanguageFromResource("en_us");
-        loadLanguageFromResource("ja_jp");
+        // 保存默认语言文件到磁盘（如果不存在）
+        saveDefaultLanguageFile("zh_cn");
+        saveDefaultLanguageFile("en_us");
+        saveDefaultLanguageFile("ja_jp");
 
-        // Load custom language files from disk
+        // 从磁盘加载语言文件（优先使用磁盘文件）
         File[] langFiles = langFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (langFiles != null) {
             for (File langFile : langFiles) {
@@ -69,7 +69,35 @@ public class I18nManager {
             }
         }
 
+        // 如果磁盘上没有文件，从资源加载
+        if (languages.isEmpty()) {
+            logger.warning("No language files found on disk, loading from resources...");
+            loadLanguageFromResource("zh_cn");
+            loadLanguageFromResource("en_us");
+            loadLanguageFromResource("ja_jp");
+        }
+
         logger.info("Loaded " + languages.size() + " language files");
+    }
+    
+    /**
+     * 保存默认语言文件到磁盘。
+     *
+     * @param languageCode 语言代码
+     */
+    private void saveDefaultLanguageFile(String languageCode) {
+        File langFile = new File(dataFolder, "lang/" + languageCode + ".yml");
+        if (!langFile.exists()) {
+            String resourcePath = "lang/" + languageCode + ".yml";
+            try (InputStream inputStream = plugin.getResource(resourcePath)) {
+                if (inputStream != null) {
+                    java.nio.file.Files.copy(inputStream, langFile.toPath());
+                    logger.info("Saved default language file: " + languageCode);
+                }
+            } catch (IOException e) {
+                logger.warning("Failed to save default language file: " + languageCode + " - " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -79,11 +107,14 @@ public class I18nManager {
      */
     private void loadLanguageFromResource(String languageCode) {
         String resourcePath = "lang/" + languageCode + ".yml";
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+        // 使用插件的资源加载方法，更可靠
+        try (InputStream inputStream = plugin.getResource(resourcePath)) {
             if (inputStream != null) {
                 FileConfiguration config = YamlConfiguration.loadConfiguration(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
                 languages.put(languageCode, config);
-                logger.fine("Loaded language file from resources: " + languageCode);
+                logger.info("Loaded language file from resources: " + languageCode + " with " + config.getKeys(true).size() + " keys");
+            } else {
+                logger.warning("Language resource not found: " + resourcePath);
             }
         } catch (IOException e) {
             logger.warning("Failed to load language file from resources: " + languageCode + " - " + e.getMessage());
@@ -98,11 +129,23 @@ public class I18nManager {
      */
     private void loadLanguageFromFile(File file, String languageCode) {
         try {
-            FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+            // 使用 UTF-8 编码加载文件
+            FileConfiguration config = YamlConfiguration.loadConfiguration(new InputStreamReader(new java.io.FileInputStream(file), StandardCharsets.UTF_8));
             languages.put(languageCode, config);
-            logger.fine("Loaded language file from disk: " + languageCode);
+            
+            // 调试：列出所有加载的键
+            //logger.info("Loaded language file from disk: " + languageCode + " (" + file.getAbsolutePath() + ")");
+            //logger.info("Loaded keys count: " + config.getKeys(true).size());
+            
+            // 检查 list 相关的键是否存在
+            if (config.contains("list")) {
+                logger.info("'list' section found, keys: " + config.getConfigurationSection("list").getKeys(false));
+            } else {
+                logger.warning("'list' section NOT found in " + languageCode);
+            }
         } catch (Exception e) {
             logger.warning("Failed to load language file from disk: " + languageCode + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -146,11 +189,15 @@ public class I18nManager {
      */
     public String getMessage(String key, Object... args) {
         if (currentLanguage == null) {
+            logger.warning("currentLanguage is null when getting key: " + key);
             return key;
         }
 
         String message = currentLanguage.getString(key);
         if (message == null) {
+            // 调试：显示当前语言中有哪些键
+            logger.warning("Key '" + key + "' not found. Available top-level keys: " + currentLanguage.getKeys(false));
+            
             // Try to get from default language
             String defaultLangCode = plugin.getConfig().getString("language.default", "zh_cn");
             FileConfiguration defaultLang = languages.get(defaultLangCode);
@@ -159,7 +206,7 @@ public class I18nManager {
             }
             
             if (message == null) {
-                logger.warning("Message not found: " + key);
+                logger.warning("Language not found: " + key);
                 return key;
             }
         }
@@ -174,8 +221,8 @@ public class I18nManager {
      * @param key          The message key
      * @return The translated string, or the key if not found
      */
-    public String getMessage(String languageCode, String key) {
-        return getMessage(languageCode, key, (Object[]) null);
+    public String getLanguageMessage(String languageCode, String key) {
+        return getLanguageMessage(languageCode, key, (Object[]) null);
     }
 
     /**
@@ -186,7 +233,7 @@ public class I18nManager {
      * @param args         The formatting arguments
      * @return The formatted translated string, or the key if not found
      */
-    public String getMessage(String languageCode, String key, Object... args) {
+    public String getLanguageMessage(String languageCode, String key, Object... args) {
         FileConfiguration language = languages.get(languageCode);
         if (language == null) {
             logger.warning("Language not found: " + languageCode);

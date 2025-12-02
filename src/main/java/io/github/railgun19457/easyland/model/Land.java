@@ -71,6 +71,127 @@ public class Land {
         this(id, name, world, x1, z1, x2, z2, ownerId);
         this.parentLandId = parentLandId;
     }
+    
+    /**
+     * Private constructor for Builder pattern.
+     */
+    private Land(Builder builder) {
+        this.id = builder.id;
+        this.name = builder.name;
+        this.world = builder.world;
+        this.x1 = builder.x1;
+        this.z1 = builder.z1;
+        this.x2 = builder.x2;
+        this.z2 = builder.z2;
+        this.ownerId = builder.ownerId;
+        this.parentLandId = builder.parentLandId;
+        this.owner = builder.owner;
+        this.flags = builder.flags;
+        this.trustedPlayers = builder.trustedPlayers;
+    }
+    
+    /**
+     * Builder class for Land objects.
+     * Provides a fluent API for constructing Land instances.
+     */
+    public static class Builder {
+        private int id;
+        private String name;
+        private String world;
+        private int x1;
+        private int z1;
+        private int x2;
+        private int z2;
+        private int ownerId;
+        private Integer parentLandId;
+        private Player owner;
+        private Set<LandFlag> flags;
+        private List<Player> trustedPlayers;
+        
+        public Builder() {}
+        
+        public Builder id(int id) {
+            this.id = id;
+            return this;
+        }
+        
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+        
+        public Builder world(String world) {
+            this.world = world;
+            return this;
+        }
+        
+        public Builder x1(int x1) {
+            this.x1 = x1;
+            return this;
+        }
+        
+        public Builder z1(int z1) {
+            this.z1 = z1;
+            return this;
+        }
+        
+        public Builder x2(int x2) {
+            this.x2 = x2;
+            return this;
+        }
+        
+        public Builder z2(int z2) {
+            this.z2 = z2;
+            return this;
+        }
+        
+        /**
+         * Sets the coordinates, automatically normalizing min/max values.
+         */
+        public Builder coordinates(int x1, int z1, int x2, int z2) {
+            this.x1 = Math.min(x1, x2);
+            this.z1 = Math.min(z1, z2);
+            this.x2 = Math.max(x1, x2);
+            this.z2 = Math.max(z1, z2);
+            return this;
+        }
+        
+        public Builder ownerId(int ownerId) {
+            this.ownerId = ownerId;
+            return this;
+        }
+        
+        public Builder parentLandId(Integer parentLandId) {
+            this.parentLandId = parentLandId;
+            return this;
+        }
+        
+        public Builder owner(Player owner) {
+            this.owner = owner;
+            return this;
+        }
+        
+        public Builder flags(Set<LandFlag> flags) {
+            this.flags = flags;
+            return this;
+        }
+        
+        public Builder trustedPlayers(List<Player> trustedPlayers) {
+            this.trustedPlayers = trustedPlayers;
+            return this;
+        }
+        
+        public Land build() {
+            return new Land(this);
+        }
+    }
+    
+    /**
+     * Creates a new Builder instance.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public int getId() {
         return id;

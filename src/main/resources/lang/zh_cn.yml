@@ -24,6 +24,11 @@ permission:
   admin-bypass: "§6[管理员] §e你绕过了领地保护。"
   admin-manage: "§6[管理员] §e你正在管理其他玩家的领地。"
 
+# 创建领地
+create:
+  success: "§a成功创建领地！ID: %s"
+  failed: "§c创建领地失败。请检查选区是否有效、是否与其他领地重叠、或是否超出限制。"
+
 # 认领领地
 claim:
   success: "§a成功认领领地！"
@@ -39,7 +44,11 @@ list:
   empty: "§e你还没有任何领地。"
   all-lands: "全服所有领地"
   header: "§6=== %s 的领地列表 ==="
-  item: "§e- 领地 %s (面积: %s 方块)"
+  item: "§e#%s §f%s §7| §b主人: §a%s §7| §d%s"
+  page-info: "§7第 §e%s§7/§e%s§7 页 (共 §e%s§7 个领地)"
+  page-simple: "§7第 §e%s§7 页"
+  separator: "§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  next-page: "§7使用 §e%s§7 查看下一页"
 
 # 信任玩家
 trust:
@@ -97,6 +106,11 @@ subclaim:
 # 选择工具
 select:
   given: "§a已获得领地选择工具！左键点击设置第一个位置，右键点击设置第二个位置。"
+  pos1-set: "§a已设置第一个位置: §e(%s, %s, %s)"
+  pos2-set: "§a已设置第二个位置: §e(%s, %s, %s)"
+  selection-complete: "§a选区完成！面积: §e%s §a方块。使用 §e/el create §a创建领地。"
+  different-worlds: "§c两个位置必须在同一个世界！"
+  incomplete: "§c请先使用选择工具选择两个位置。"
 
 # 帮助
 help:
@@ -116,3 +130,28 @@ help:
   subclaim: "§e/el subclaim <parentLandId> - 创建子领地"
   reload: "§e/el reload - 重新加载配置"
   migrate: "§e/el migrate [confirm|cancel] - 从旧版YAML文件迁移数据到SQLite数据库"
+
+# 数据迁移
+migrate:
+  warning: "§e[Easyland] §c警告: 您即将执行数据迁移操作！"
+  warning-details: "§e[Easyland] §c此操作将从旧版YAML文件迁移数据到新的SQLite数据库。"
+  backup-reminder: "§e[Easyland] §c建议在执行前备份您的数据。"
+  confirm-instruction: "§e[Easyland] §a输入 §f/el migrate confirm §a来确认执行迁移。"
+  cancel-instruction: "§e[Easyland] §a输入 §f/el migrate cancel §a来取消操作。"
+  started: "§e[Easyland] 开始数据迁移..."
+  checking-files: "§e[Easyland] 正在检查必需的文件..."
+  files-checked: "§a[Easyland] 文件检查完成。"
+  migrating-config: "§e[Easyland] 正在迁移配置文件..."
+  config-migrated: "§a[Easyland] 配置文件迁移完成。"
+  migrating-lands: "§e[Easyland] 正在迁移领地数据..."
+  lands-migrated: "§a[Easyland] 领地数据迁移完成，共迁移 %s 个领地。"
+  lands-progress: "§e[Easyland] 已迁移 %s 个领地..."
+  reloading-config: "§e[Easyland] 正在重载配置和重新初始化组件..."
+  config-reloaded: "§a[Easyland] 配置重载完成。"
+  success: "§a[Easyland] 数据迁移成功完成！耗时: %s 秒。"
+  success-short: "§a[Easyland] 数据迁移成功完成！"
+  failed: "§c[Easyland] 数据迁移失败，请检查控制台获取详细信息。"
+  failed-with-reason: "§c[Easyland] 数据迁移失败: %s"
+  failed-file-instruction: "§e[Easyland] 请确保旧版数据文件已正确放置在插件数据目录的 oldfiles/ 文件夹中。"
+  failed-check-console: "§e[Easyland] 请检查控制台获取详细错误信息。"
+  cancelled: "§e[Easyland] 数据迁移已取消。"
