@@ -185,7 +185,7 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         
         // 注册选择工具监听器
         getServer().getPluginManager().registerEvents(
-            new SelectionToolListener(this, selectionManager, i18nManager, permissionManager), this);
+            new SelectionToolListener(selectionManager, i18nManager, permissionManager), this);
 
         // 注册领地进出监听器
         getServer().getPluginManager().registerEvents(

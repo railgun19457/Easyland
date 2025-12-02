@@ -2,6 +2,7 @@ package io.github.railgun19457.easyland.core;
 
 import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.exception.LandNotFoundException;
+import io.github.railgun19457.easyland.exception.SubClaimException;
 import io.github.railgun19457.easyland.model.Land;
 import io.github.railgun19457.easyland.model.LandTrust;
 import io.github.railgun19457.easyland.storage.LandDAO;
@@ -10,8 +11,10 @@ import io.github.railgun19457.easyland.storage.PlayerDAO;
 import org.bukkit.Location;
 
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -587,52 +590,40 @@ public class LandManager {
      * @param pos2        The second corner position
      * @return The created sub-claim, or null if creation failed
      */
-    public Land createSubClaim(org.bukkit.entity.Player owner, String parentLandId, Location pos1, Location pos2) {
+    public Land createSubClaim(org.bukkit.entity.Player owner, String parentLandIdOrName, Location pos1, Location pos2, String name) throws SubClaimException {
         try {
-            // Parse parent land ID
-            int parentId;
-            try {
-                parentId = Integer.parseInt(parentLandId);
-            } catch (NumberFormatException e) {
-                logger.info("Invalid parent land ID: " + parentLandId);
-                return null;
-            }
-
             // Get the parent land
-            Optional<Land> parentLandOpt = landDAO.getLandById(parentId);
+            Optional<Land> parentLandOpt = getLandByIdOrName(parentLandIdOrName);
             if (!parentLandOpt.isPresent()) {
-                logger.info("Parent land not found: " + parentLandId);
-                return null;
+                throw new SubClaimException("Parent land not found: " + parentLandIdOrName);
             }
 
             Land parentLand = parentLandOpt.get();
+            int parentId = parentLand.getId();
             
             // Get owner from database
             Optional<io.github.railgun19457.easyland.model.Player> dbPlayerOpt = playerDAO.getPlayerByUuid(
                 owner.getUniqueId());
             if (!dbPlayerOpt.isPresent()) {
-                logger.info("Player not found in database: " + owner.getName());
-                return null;
+                throw new SubClaimException("Player not found in database");
             }
 
             io.github.railgun19457.easyland.model.Player dbPlayer = dbPlayerOpt.get();
             
-            // Check if player owns the parent land
-            if (parentLand.getOwnerId() != dbPlayer.getId()) {
-                logger.info("Player does not own parent land: " + parentLandId);
-                return null;
+            // Check if player owns the parent land or is admin
+            boolean isAdmin = owner.hasPermission("easyland.admin") || owner.hasPermission("easyland.admin.manage");
+            if (parentLand.getOwnerId() != dbPlayer.getId() && !isAdmin) {
+                throw new SubClaimException("You do not own the parent land");
             }
 
             // Check sub-claim limits
             if (!checkSubClaimLimits(parentLand)) {
-                logger.info("Sub-claim limits exceeded for parent land: " + parentLandId);
-                return null;
+                throw new SubClaimException("Sub-claim limit reached for this land");
             }
 
             // Validate positions
             if (!pos1.getWorld().equals(pos2.getWorld()) || !pos1.getWorld().getName().equals(parentLand.getWorld())) {
-                logger.warning("Positions must be in the same world as the parent land");
-                return null;
+                throw new SubClaimException("Sub-claim must be in the same world as the parent land");
             }
 
             // Calculate sub-claim coordinates
@@ -644,24 +635,39 @@ public class LandManager {
             // Check if sub-claim is within parent land boundaries
             if (x1 < parentLand.getX1() || x2 > parentLand.getX2() ||
                 z1 < parentLand.getZ1() || z2 > parentLand.getZ2()) {
-                logger.info("Sub-claim is not within parent land boundaries");
-                return null;
+                throw new SubClaimException("Sub-claim must be completely within the parent land boundaries");
             }
 
-            // Check for overlapping lands (including other sub-claims)
+            // Check for overlapping lands (excluding parent and its ancestors)
             List<Land> overlappingLands = landDAO.getOverlappingLands(
                 pos1.getWorld().getName(), x1, z1, x2, z2);
             
-            if (!overlappingLands.isEmpty()) {
-                logger.info("Sub-claim overlaps with existing lands");
-                return null;
+            // Build set of allowed parent IDs (ancestors)
+            Set<Integer> allowedParents = new HashSet<>();
+            allowedParents.add(parentLand.getId());
+            Integer currentParentId = parentLand.getParentLandId();
+            while (currentParentId != null) {
+                allowedParents.add(currentParentId);
+                Optional<Land> pOpt = landDAO.getLandById(currentParentId);
+                if (pOpt.isPresent()) {
+                    currentParentId = pOpt.get().getParentLandId();
+                } else {
+                    break;
+                }
+            }
+
+            for (Land overlap : overlappingLands) {
+                if (!allowedParents.contains(overlap.getId())) {
+                    throw new SubClaimException("Sub-claim overlaps with existing land: " + overlap.getId());
+                }
             }
 
             // Create the sub-claim using Builder pattern
             Land subClaim = Land.builder()
+                .name(name)
                 .world(pos1.getWorld().getName())
                 .coordinates(x1, z1, x2, z2)
-                .ownerId(dbPlayer.getId())
+                .ownerId(0) // Unowned, waiting to be claimed
                 .parentLandId(parentId)
                 .build();
             landDAO.createLand(subClaim);
@@ -669,12 +675,12 @@ public class LandManager {
             // Invalidate cache for the affected area
             landCache.invalidateCacheInArea(subClaim.getWorld(), subClaim.getX1(), subClaim.getZ1(), subClaim.getX2(), subClaim.getZ2());
             
-            logger.info("Created sub-claim " + subClaim.getId() + " for player " + owner.getName() + " under parent land " + parentLandId);
+            logger.info("Created sub-claim " + subClaim.getId() + " for player " + owner.getName() + " under parent land " + parentLandIdOrName);
             return subClaim;
             
         } catch (SQLException e) {
             logger.severe("Failed to create sub-claim: " + e.getMessage());
-            return null;
+            throw new SubClaimException("Database error occurred");
         }
     }
     

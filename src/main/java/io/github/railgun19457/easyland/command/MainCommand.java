@@ -4,6 +4,7 @@ import io.github.railgun19457.easyland.EasyLand;
 import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.core.LandManager;
 import io.github.railgun19457.easyland.exception.MigrationFileNotFoundException;
+import io.github.railgun19457.easyland.exception.SubClaimException;
 import io.github.railgun19457.easyland.migration.MigrationManager;
 import io.github.railgun19457.easyland.model.Land;
 import org.bukkit.Location;
@@ -35,7 +36,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     
     // 子命令列表
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "protection", "reload", "rename", "subclaim", "migrate", "select", "setspawn", "tp"
+        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "protection", "reload", "rename", "subcreate", "migrate", "select", "setspawn", "tp"
     );
     
     // 管理员子命令列表
@@ -62,7 +63,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("protection", "easyland.protection"),
         Map.entry("reload", "easyland.admin"),
         Map.entry("rename", "easyland.rename"),
-        Map.entry("subclaim", "easyland.subclaim"),
+        Map.entry("subcreate", "easyland.subcreate"),
         Map.entry("select", "easyland.select"),
         Map.entry("migrate", "easyland.admin.migrate"),
         Map.entry("setspawn", "easyland.setspawn"),
@@ -80,7 +81,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("easyland.list", List.of("help.list")),
         Map.entry("easyland.show", List.of("help.show")),
         Map.entry("easyland.trust", List.of("help.trust", "help.untrust")),
-        Map.entry("easyland.subclaim", List.of("help.subclaim")),
+        Map.entry("easyland.subcreate", List.of("help.subcreate")),
         Map.entry("easyland.protection", List.of("help.protection")),
         Map.entry("easyland.admin", List.of("help.reload")),
         Map.entry("easyland.admin.migrate", List.of("help.migrate")),
@@ -234,8 +235,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 handleRename(player, args, commandName);
                 break;
                 
-            case "subclaim":
-                handleSubClaim(player, args, commandName);
+            case "subcreate":
+                handleSubCreate(player, args, commandName);
                 break;
                 
             case "migrate":
@@ -795,18 +796,22 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
-     * 处理subclaim命令。
+     * 处理subcreate命令。
      */
-    private void handleSubClaim(Player player, String[] args, String commandName) {
-        if (!checkPermission(player, "easyland.subclaim", "permission.no-subclaim")) {
+    private void handleSubCreate(Player player, String[] args, String commandName) {
+        if (!checkPermission(player, "easyland.subcreate", "permission.no-subcreate")) {
             return;
         }
         
-        if (!validateArgs(player, args, 2, "subclaim <parentLandId>", commandName)) {
+        if (!validateArgs(player, args, 2, "subcreate <parentLand> [name]", commandName)) {
             return;
         }
         
-        String parentLandId = args[1];
+        String parentLandIdOrName = args[1];
+        String name = null;
+        if (args.length > 2) {
+            name = args[2];
+        }
         
         // 检查玩家是否有完整的选区
         io.github.railgun19457.easyland.core.SelectionManager selectionManager = plugin.getSelectionManager();
@@ -825,16 +830,18 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Location pos1 = selectionManager.getPos1(player);
         Location pos2 = selectionManager.getPos2(player);
         
-        Land subClaim = landManager.createSubClaim(player, parentLandId, pos1, pos2);
-        
-        if (subClaim != null) {
-            player.sendMessage(i18nManager.getMessage("subclaim.success", String.valueOf(subClaim.getId())));
-            // 显示子领地边界
-            plugin.getLandVisualizer().showLandBoundary(player, subClaim, 10);
-            // 清除选区
-            selectionManager.clearSelection(player);
-        } else {
-            player.sendMessage(i18nManager.getMessage("subclaim.failed"));
+        try {
+            Land subClaim = landManager.createSubClaim(player, parentLandIdOrName, pos1, pos2, name);
+            
+            if (subClaim != null) {
+                player.sendMessage(i18nManager.getMessage("subcreate.success", String.valueOf(subClaim.getId())));
+                // 显示子领地边界
+                plugin.getLandVisualizer().showLandBoundary(player, subClaim, 10);
+                // 清除选区
+                selectionManager.clearSelection(player);
+            }
+        } catch (SubClaimException e) {
+            player.sendMessage("§c" + e.getMessage());
         }
     }
     
@@ -1026,6 +1033,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "abandon":
                 case "rename":
                 case "setspawn":
+                case "subcreate":
                     // 补全玩家拥有的领地ID和名称
                     if (args.length == 2 && player != null) {
                         completions.addAll(getPlayerLandCompletions(player));

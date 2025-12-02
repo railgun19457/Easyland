@@ -1,6 +1,5 @@
 package io.github.railgun19457.easyland.listener;
 
-import io.github.railgun19457.easyland.EasyLand;
 import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.core.PermissionManager;
 import io.github.railgun19457.easyland.core.SelectionManager;
@@ -23,14 +22,12 @@ public class SelectionToolListener implements Listener {
     
     private static final String TOOL_NAME_INDICATOR = "EasyLand";
     
-    private final EasyLand plugin;
     private final SelectionManager selectionManager;
     private final I18nManager i18nManager;
     private final PermissionManager permissionManager;
     
-    public SelectionToolListener(EasyLand plugin, SelectionManager selectionManager, 
+    public SelectionToolListener(SelectionManager selectionManager, 
                                   I18nManager i18nManager, PermissionManager permissionManager) {
-        this.plugin = plugin;
         this.selectionManager = selectionManager;
         this.i18nManager = i18nManager;
         this.permissionManager = permissionManager;
@@ -39,6 +36,7 @@ public class SelectionToolListener implements Listener {
     /**
      * 检查物品是否是领地选择工具。
      */
+    @SuppressWarnings("deprecation")
     private boolean isSelectionTool(ItemStack item) {
         if (item == null || item.getType() != Material.WOODEN_HOE) {
             return false;

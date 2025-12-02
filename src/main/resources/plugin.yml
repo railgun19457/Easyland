@@ -26,6 +26,20 @@ permissions:
   easyland.use:
     description: 使用EasyLand基本命令
     default: true
+    children:
+      easyland.claim: true
+      easyland.abandon: true
+      easyland.delete: true
+      easyland.info: true
+      easyland.list: true
+      easyland.show: true
+      easyland.trust: true
+      easyland.protection: true
+      easyland.rename: true
+      easyland.subcreate: true
+      easyland.setspawn: true
+      easyland.tp: true
+      easyland.select: true
   easyland.admin:
     description: EasyLand管理员权限 - OP自动拥有，可管理所有领地并绕过所有保护
     default: op
@@ -75,8 +89,14 @@ permissions:
   easyland.rename:
     description: 重命名领地
     default: true
-  easyland.subclaim:
+  easyland.subcreate:
     description: 创建子领地
+    default: true
+  easyland.setspawn:
+    description: 设置领地传送点
+    default: true
+  easyland.tp:
+    description: 传送到领地
     default: true
   easyland.migrate:
     description: 从旧版YAML文件迁移数据到SQLite数据库（管理员命令）

@@ -19,7 +19,7 @@ permission:
   no-show: "§c你没有显示领地边界的权限。"
   no-protection: "§c你没有管理保护规则的权限。"
   no-rename: "§c你没有重命名领地的权限。"
-  no-subclaim: "§c你没有创建子领地的权限。"
+  no-subcreate: "§c你没有创建子领地的权限。"
   no-select: "§c你没有使用选择工具的权限。"
   no-setspawn: "§c你没有设置领地传送点的权限。"
   no-tp: "§c你没有传送到领地的权限。"
@@ -125,7 +125,7 @@ help:
   protection: "§e/el protection <规则> [on|off] §7- 管理保护规则"
   reload: "§e/el reload §7- 重加载配置文件"
   rename: "§e/el rename <ID> <新名称> §7- 重命名领地"
-  subclaim: "§e/el subclaim create <名称> §7- 创建子领地"
+  subcreate: "§e/el subcreate <父领地> [名称] §7- 创建子领地"
   migrate: "§e/el migrate <插件> §7- 从其他插件迁移数据"
   select: "§e/el select §7- 获取领地选择工具"
   setspawn: "§e/el setspawn <领地> §7- 设置领地传送点"
@@ -138,7 +138,7 @@ rename:
   failed: "§c重命名领地失败。"
 
 # 子领地
-subclaim:
+subcreate:
   success: "§a成功创建子领地！ID: %s"
   failed: "§c创建子领地失败。"
   select-positions: "§e请选择两个位置来创建子领地。"
