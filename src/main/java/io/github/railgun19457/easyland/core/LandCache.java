@@ -140,6 +140,21 @@ public class LandCache {
             List<Land> landsInChunk = landDAO.getOverlappingLands(
                 location.getWorld().getName(), minX, minZ, maxX, maxZ);
             
+            // 排序：面积小的优先（通常是子领地），如果面积相同，有父领地的优先
+            landsInChunk.sort((l1, l2) -> {
+                int area1 = l1.getArea();
+                int area2 = l2.getArea();
+                if (area1 != area2) {
+                    return Integer.compare(area1, area2);
+                }
+                // 面积相同，优先子领地
+                boolean isSub1 = l1.getParentLandId() != null;
+                boolean isSub2 = l2.getParentLandId() != null;
+                if (isSub1 && !isSub2) return -1;
+                if (!isSub1 && isSub2) return 1;
+                return 0;
+            });
+            
             // 缓存结果
             String chunkKey = getChunkKey(location);
             chunkCache.put(chunkKey, landsInChunk);

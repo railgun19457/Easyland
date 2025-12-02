@@ -16,6 +16,11 @@ public class Land {
     private int z2;
     private int ownerId;
     private Integer parentLandId;
+    private Double teleportX;
+    private Double teleportY;
+    private Double teleportZ;
+    private Float teleportYaw;
+    private Float teleportPitch;
     private Player owner;
     private Set<LandFlag> flags;
     private List<Player> trustedPlayers;
@@ -85,6 +90,11 @@ public class Land {
         this.z2 = builder.z2;
         this.ownerId = builder.ownerId;
         this.parentLandId = builder.parentLandId;
+        this.teleportX = builder.teleportX;
+        this.teleportY = builder.teleportY;
+        this.teleportZ = builder.teleportZ;
+        this.teleportYaw = builder.teleportYaw;
+        this.teleportPitch = builder.teleportPitch;
         this.owner = builder.owner;
         this.flags = builder.flags;
         this.trustedPlayers = builder.trustedPlayers;
@@ -104,6 +114,11 @@ public class Land {
         private int z2;
         private int ownerId;
         private Integer parentLandId;
+        private Double teleportX;
+        private Double teleportY;
+        private Double teleportZ;
+        private Float teleportYaw;
+        private Float teleportPitch;
         private Player owner;
         private Set<LandFlag> flags;
         private List<Player> trustedPlayers;
@@ -142,6 +157,31 @@ public class Land {
         
         public Builder z2(int z2) {
             this.z2 = z2;
+            return this;
+        }
+
+        public Builder teleportX(Double teleportX) {
+            this.teleportX = teleportX;
+            return this;
+        }
+
+        public Builder teleportY(Double teleportY) {
+            this.teleportY = teleportY;
+            return this;
+        }
+
+        public Builder teleportZ(Double teleportZ) {
+            this.teleportZ = teleportZ;
+            return this;
+        }
+
+        public Builder teleportYaw(Float teleportYaw) {
+            this.teleportYaw = teleportYaw;
+            return this;
+        }
+
+        public Builder teleportPitch(Float teleportPitch) {
+            this.teleportPitch = teleportPitch;
             return this;
         }
         
@@ -263,6 +303,46 @@ public class Land {
 
     public void setParentLandId(Integer parentLandId) {
         this.parentLandId = parentLandId;
+    }
+
+    public Double getTeleportX() {
+        return teleportX;
+    }
+
+    public void setTeleportX(Double teleportX) {
+        this.teleportX = teleportX;
+    }
+
+    public Double getTeleportY() {
+        return teleportY;
+    }
+
+    public void setTeleportY(Double teleportY) {
+        this.teleportY = teleportY;
+    }
+
+    public Double getTeleportZ() {
+        return teleportZ;
+    }
+
+    public void setTeleportZ(Double teleportZ) {
+        this.teleportZ = teleportZ;
+    }
+
+    public Float getTeleportYaw() {
+        return teleportYaw;
+    }
+
+    public void setTeleportYaw(Float teleportYaw) {
+        this.teleportYaw = teleportYaw;
+    }
+
+    public Float getTeleportPitch() {
+        return teleportPitch;
+    }
+
+    public void setTeleportPitch(Float teleportPitch) {
+        this.teleportPitch = teleportPitch;
     }
 
     public boolean isSubLand() {

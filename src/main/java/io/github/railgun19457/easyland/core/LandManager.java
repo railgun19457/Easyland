@@ -110,11 +110,22 @@ public class LandManager {
                 return null;
             }
 
+            // Calculate default teleport location (center of land)
+            int centerX = (x1 + x2) / 2;
+            int centerZ = (z1 + z2) / 2;
+            // Get highest block Y at center
+            int centerY = pos1.getWorld().getHighestBlockYAt(centerX, centerZ) + 1;
+
             // Create the land using Builder pattern
             Land land = Land.builder()
                 .world(pos1.getWorld().getName())
                 .coordinates(x1, z1, x2, z2)
                 .ownerId(dbPlayer.getId())
+                .teleportX(centerX + 0.5)
+                .teleportY((double) centerY)
+                .teleportZ(centerZ + 0.5)
+                .teleportYaw(0.0f)
+                .teleportPitch(0.0f)
                 .build();
             landDAO.createLand(land);
             
@@ -281,6 +292,92 @@ public class LandManager {
             logger.severe("Failed to rename land: " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Sets the spawn point for a land.
+     *
+     * @param player   The player setting the spawn
+     * @param landName The name of the land
+     * @return true if successful, false otherwise
+     */
+    public boolean setLandSpawn(org.bukkit.entity.Player player, String landName) {
+        try {
+            Land land = getAndVerifyLandOwnerOrAdmin(player, landName);
+            if (land == null) {
+                return false;
+            }
+
+            Location loc = player.getLocation();
+            // Ensure the location is inside the land
+            if (!land.getWorld().equals(loc.getWorld().getName()) || 
+                !land.contains(loc.getBlockX(), loc.getBlockZ())) {
+                // TODO: Send message "Spawn point must be inside the land"
+                return false;
+            }
+
+            land.setTeleportX(loc.getX());
+            land.setTeleportY(loc.getY());
+            land.setTeleportZ(loc.getZ());
+            land.setTeleportYaw(loc.getYaw());
+            land.setTeleportPitch(loc.getPitch());
+
+            landDAO.updateLand(land);
+            landCache.invalidateLandCache(land.getId());
+            
+            return true;
+        } catch (LandNotFoundException e) {
+            return false;
+        } catch (SQLException e) {
+            logger.severe("Failed to set land spawn: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Teleports a player to a land.
+     *
+     * @param player   The player to teleport
+     * @param landName The name of the land
+     * @return true if successful, false otherwise
+     */
+    public boolean teleportToLand(org.bukkit.entity.Player player, String landName) {
+        Optional<Land> landOpt = getLandByIdOrName(landName);
+        if (!landOpt.isPresent()) {
+            return false;
+        }
+        Land land = landOpt.get();
+
+        // Check if player has permission to teleport (e.g. trusted or public flag)
+        // For now, allow everyone if it's public or if they are trusted/owner
+        // TODO: Check 'teleport' flag or similar
+
+        Location target;
+        if (land.getTeleportX() != null) {
+            target = new Location(
+                org.bukkit.Bukkit.getWorld(land.getWorld()),
+                land.getTeleportX(),
+                land.getTeleportY(),
+                land.getTeleportZ(),
+                land.getTeleportYaw(),
+                land.getTeleportPitch()
+            );
+        } else {
+            // Default to center of land
+            int centerX = (land.getX1() + land.getX2()) / 2;
+            int centerZ = (land.getZ1() + land.getZ2()) / 2;
+            int y = org.bukkit.Bukkit.getWorld(land.getWorld())
+                    .getHighestBlockYAt(centerX, centerZ) + 1;
+            target = new Location(
+                org.bukkit.Bukkit.getWorld(land.getWorld()),
+                centerX + 0.5,
+                y,
+                centerZ + 0.5
+            );
+        }
+
+        player.teleport(target);
+        return true;
     }
 
     /**

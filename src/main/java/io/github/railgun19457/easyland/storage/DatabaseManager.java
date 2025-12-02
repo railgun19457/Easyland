@@ -156,12 +156,28 @@ public class DatabaseManager {
                 "owner_id INTEGER NOT NULL," +           // 领地主人ID
                 "parent_land_id INTEGER," +              // 父领地ID (用于子领地)
                 "priority INTEGER DEFAULT 0," +          // 优先级 (数值越大优先级越高)
+                "teleport_x DOUBLE," +                   // 传送点 X 坐标
+                "teleport_y DOUBLE," +                   // 传送点 Y 坐标
+                "teleport_z DOUBLE," +                   // 传送点 Z 坐标
+                "teleport_yaw FLOAT," +                  // 传送点 Yaw
+                "teleport_pitch FLOAT," +                // 传送点 Pitch
                 "created_at DATETIME DEFAULT CURRENT_TIMESTAMP," +  // 创建时间
                 "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP," +  // 修改时间
                 "FOREIGN KEY (owner_id) REFERENCES players (id) ON DELETE CASCADE," +
                 "FOREIGN KEY (parent_land_id) REFERENCES lands (id) ON DELETE SET NULL" +
                 ")"
             );
+
+            // 检查并添加传送点列（如果不存在）
+            try {
+                statement.execute("ALTER TABLE lands ADD COLUMN teleport_x DOUBLE");
+                statement.execute("ALTER TABLE lands ADD COLUMN teleport_y DOUBLE");
+                statement.execute("ALTER TABLE lands ADD COLUMN teleport_z DOUBLE");
+                statement.execute("ALTER TABLE lands ADD COLUMN teleport_yaw FLOAT");
+                statement.execute("ALTER TABLE lands ADD COLUMN teleport_pitch FLOAT");
+            } catch (SQLException e) {
+                // 列可能已存在，忽略
+            }
 
             // ========================================
             // 3. 领地规则表 (land_flags)

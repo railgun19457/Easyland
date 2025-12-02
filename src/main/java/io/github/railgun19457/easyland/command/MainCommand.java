@@ -35,7 +35,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     
     // 子命令列表
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "protection", "reload", "rename", "subclaim", "migrate", "select"
+        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "protection", "reload", "rename", "subclaim", "migrate", "select", "setspawn", "tp"
     );
     
     // 管理员子命令列表
@@ -64,7 +64,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("rename", "easyland.rename"),
         Map.entry("subclaim", "easyland.subclaim"),
         Map.entry("select", "easyland.select"),
-        Map.entry("migrate", "easyland.admin.migrate")
+        Map.entry("migrate", "easyland.admin.migrate"),
+        Map.entry("setspawn", "easyland.setspawn"),
+        Map.entry("tp", "easyland.tp")
     );
     
     // 帮助消息映射表：权限 -> 帮助消息键列表
@@ -81,7 +83,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("easyland.subclaim", List.of("help.subclaim")),
         Map.entry("easyland.protection", List.of("help.protection")),
         Map.entry("easyland.admin", List.of("help.reload")),
-        Map.entry("easyland.admin.migrate", List.of("help.migrate"))
+        Map.entry("easyland.admin.migrate", List.of("help.migrate")),
+        Map.entry("easyland.setspawn", List.of("help.setspawn")),
+        Map.entry("easyland.tp", List.of("help.tp"))
     );
     
     /**
@@ -192,6 +196,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 
             case "info":
                 handleInfo(player, args, commandName);
+                break;
+
+            case "setspawn":
+                handleSetSpawn(player, args, commandName);
+                break;
+
+            case "tp":
+                handleTeleport(player, args, commandName);
                 break;
                 
             case "help":
@@ -364,15 +376,36 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             String ownerName = getOwnerName(land.getOwnerId());
             
             // 格式: 领地ID | 主人名称 | 坐标
-            String landName = land.getName() != null ? land.getName() : "ID:" + land.getId();
-            String coords = String.format("(%d, %d) - (%d, %d)", 
-                land.getX1(), land.getZ1(), land.getX2(), land.getZ2());
+            String displayName = land.getName() != null ? land.getName() : "ID:" + land.getId();
             
-            player.sendMessage(i18nManager.getMessage("list.item", 
-                String.valueOf(land.getId()),
-                landName,
-                ownerName,
-                coords));
+            // 计算坐标显示
+            String coords;
+            if (land.getTeleportX() != null) {
+                coords = String.format("(%.0f, %.0f, %.0f)", 
+                    land.getTeleportX(), land.getTeleportY(), land.getTeleportZ());
+            } else {
+                // 如果未设置传送点，显示领地中心（与 /el tp 逻辑一致）
+                int centerX = (land.getX1() + land.getX2()) / 2;
+                int centerZ = (land.getZ1() + land.getZ2()) / 2;
+                coords = String.format("(%d, ~, %d)", centerX, centerZ);
+            }
+            
+            // 构建可点击的消息
+            // 对应 list.item: "§e#%s §f%s §7| §b主人: §a%s §7| §d%s"
+            net.kyori.adventure.text.Component message = net.kyori.adventure.text.Component.text()
+                .append(net.kyori.adventure.text.Component.text("#" + land.getId(), net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                .append(net.kyori.adventure.text.Component.space())
+                .append(net.kyori.adventure.text.Component.text(displayName, net.kyori.adventure.text.format.NamedTextColor.WHITE))
+                .append(net.kyori.adventure.text.Component.text(" | ", net.kyori.adventure.text.format.NamedTextColor.GRAY))
+                .append(net.kyori.adventure.text.Component.text("主人: ", net.kyori.adventure.text.format.NamedTextColor.AQUA))
+                .append(net.kyori.adventure.text.Component.text(ownerName, net.kyori.adventure.text.format.NamedTextColor.GREEN))
+                .append(net.kyori.adventure.text.Component.text(" | ", net.kyori.adventure.text.format.NamedTextColor.GRAY))
+                .append(net.kyori.adventure.text.Component.text(coords, net.kyori.adventure.text.format.NamedTextColor.LIGHT_PURPLE)
+                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(net.kyori.adventure.text.Component.text("点击传送")))
+                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/" + commandName + " tp " + (land.getName() != null ? land.getName() : land.getId()))))
+                .build();
+            
+            player.sendMessage(message);
         }
         
         // 显示下一页提示（仅对管理员且有足够领地时）
@@ -886,6 +919,46 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         return (land.getX2() - land.getX1() + 1) * (land.getZ2() - land.getZ1() + 1);
     }
     
+    /**
+     * Handles the setspawn command.
+     */
+    private void handleSetSpawn(Player player, String[] args, String commandName) {
+        if (!checkPermission(player, "easyland.setspawn", "permission.no-setspawn")) {
+            return;
+        }
+
+        if (!validateArgs(player, args, 2, "setspawn <land>", commandName)) {
+            return;
+        }
+
+        String landName = args[1];
+        if (landManager.setLandSpawn(player, landName)) {
+            player.sendMessage(i18nManager.getMessage("setspawn.success", landName));
+        } else {
+            player.sendMessage(i18nManager.getMessage("setspawn.failed", landName));
+        }
+    }
+
+    /**
+     * Handles the tp command.
+     */
+    private void handleTeleport(Player player, String[] args, String commandName) {
+        if (!checkPermission(player, "easyland.tp", "permission.no-tp")) {
+            return;
+        }
+
+        if (!validateArgs(player, args, 2, "tp <land>", commandName)) {
+            return;
+        }
+
+        String landName = args[1];
+        if (landManager.teleportToLand(player, landName)) {
+            player.sendMessage(i18nManager.getMessage("tp.success", landName));
+        } else {
+            player.sendMessage(i18nManager.getMessage("tp.failed", landName));
+        }
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
@@ -930,6 +1003,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "delete":
                 case "abandon":
                 case "rename":
+                case "setspawn":
                     // 补全玩家拥有的领地ID和名称
                     if (args.length == 2 && player != null) {
                         completions.addAll(getPlayerLandCompletions(player));
@@ -953,6 +1027,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     break;
                     
                 case "info":
+                case "tp":
                     if (args.length == 2 && player != null) {
                         // 补全所有领地ID和名称
                         completions.addAll(getAllLandCompletions());

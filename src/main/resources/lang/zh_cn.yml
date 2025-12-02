@@ -21,6 +21,8 @@ permission:
   no-rename: "§c你没有重命名领地的权限。"
   no-subclaim: "§c你没有创建子领地的权限。"
   no-select: "§c你没有使用选择工具的权限。"
+  no-setspawn: "§c你没有设置领地传送点的权限。"
+  no-tp: "§c你没有传送到领地的权限。"
   admin-bypass: "§6[管理员] §e你绕过了领地保护。"
   admin-manage: "§6[管理员] §e你正在管理其他玩家的领地。"
 
@@ -98,6 +100,36 @@ rule:
   status-disabled: "§e%s: §c禁用"
   invalid-rule: "§c无效的保护规则。可用规则: %s"
   set-success: "§a成功设置保护规则 %s 为 %s。"
+
+# 传送点
+setspawn:
+  success: "§a成功设置领地 %s 的传送点！"
+  failed: "§c设置传送点失败。请确保你在领地内。"
+
+tp:
+  success: "§a正在传送到领地 %s..."
+  failed: "§c传送失败。领地不存在或没有设置传送点。"
+
+# 帮助信息
+help:
+  header: "§6=== EasyLand 帮助 ==="
+  claim: "§e/el claim [ID] §7- 认领当前位置的领地"
+  delete: "§e/el delete [ID] §7- 删除领地"
+  list: "§e/el list [页码] §7- 查看你的领地列表"
+  trust: "§e/el trust <玩家> §7- 信任玩家"
+  untrust: "§e/el untrust <玩家> §7- 取消信任玩家"
+  info: "§e/el info §7- 查看当前位置的领地信息"
+  create: "§e/el create §7- 创建新领地（管理员）"
+  abandon: "§e/el abandon [ID] §7- 放弃领地"
+  show: "§e/el show [时间] §7- 显示领地边界"
+  protection: "§e/el protection <规则> [on|off] §7- 管理保护规则"
+  reload: "§e/el reload §7- 重加载配置文件"
+  rename: "§e/el rename <ID> <新名称> §7- 重命名领地"
+  subclaim: "§e/el subclaim create <名称> §7- 创建子领地"
+  migrate: "§e/el migrate <插件> §7- 从其他插件迁移数据"
+  select: "§e/el select §7- 获取领地选择工具"
+  setspawn: "§e/el setspawn <领地> §7- 设置领地传送点"
+  tp: "§e/el tp <领地> §7- 传送到领地"
   usage-tip: "§e用法: /easyland protection <规则> <on|off>"
 
 # 重命名领地
@@ -119,25 +151,6 @@ select:
   selection-complete: "§a选区完成！面积: §e%s §a方块。使用 §e/el create §a创建领地。"
   different-worlds: "§c两个位置必须在同一个世界！"
   incomplete: "§c请先使用选择工具选择两个位置。"
-
-# 帮助
-help:
-  header: "§6=== EasyLand 帮助 ==="
-  select: "§e/el select - 获取领地选择工具"
-  create: "§e/el create - 创建领地"
-  claim: "§e/el claim <landId> - 认领领地"
-  abandon: "§e/el abandon <landId> - 放弃领地"
-  delete: "§e/el delete <landId> - 删除领地"
-  info: "§e/el info [landId] - 查看领地信息"
-  list: "§e/el list [page] - 查看领地列表"
-  show: "§e/el show [duration] - 显示领地边界"
-  trust: "§e/el trust <landId> <player> - 信任玩家"
-  untrust: "§e/el untrust <landId> <player> - 取消信任玩家"
-  protection: "§e/el protection [rule] [on|off] - 管理保护规则"
-  rename: "§e/el rename <landId> <newName> - 重命名领地"
-  subclaim: "§e/el subclaim <parentLandId> - 创建子领地"
-  reload: "§e/el reload - 重新加载配置"
-  migrate: "§e/el migrate [confirm|cancel] - 从旧版YAML文件迁移数据到SQLite数据库"
 
 # 数据迁移
 migrate:

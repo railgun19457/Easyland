@@ -27,7 +27,7 @@ public class SqliteLandDAO implements LandDAO {
 
     @Override
     public void createLand(Land land) throws SQLException {
-        String sql = "INSERT INTO lands (name, world, x1, z1, x2, z2, owner_id, parent_land_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO lands (name, world, x1, z1, x2, z2, owner_id, parent_land_id, teleport_x, teleport_y, teleport_z, teleport_yaw, teleport_pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -43,6 +43,20 @@ public class SqliteLandDAO implements LandDAO {
                 stmt.setInt(8, land.getParentLandId());
             } else {
                 stmt.setNull(8, java.sql.Types.INTEGER);
+            }
+            
+            if (land.getTeleportX() != null) {
+                stmt.setDouble(9, land.getTeleportX());
+                stmt.setDouble(10, land.getTeleportY());
+                stmt.setDouble(11, land.getTeleportZ());
+                stmt.setFloat(12, land.getTeleportYaw());
+                stmt.setFloat(13, land.getTeleportPitch());
+            } else {
+                stmt.setNull(9, Types.DOUBLE);
+                stmt.setNull(10, Types.DOUBLE);
+                stmt.setNull(11, Types.DOUBLE);
+                stmt.setNull(12, Types.FLOAT);
+                stmt.setNull(13, Types.FLOAT);
             }
             
             stmt.executeUpdate();
@@ -193,7 +207,7 @@ public class SqliteLandDAO implements LandDAO {
 
     @Override
     public void updateLand(Land land) throws SQLException {
-        String sql = "UPDATE lands SET name = ?, world = ?, x1 = ?, z1 = ?, x2 = ?, z2 = ?, owner_id = ?, parent_land_id = ? WHERE id = ?";
+        String sql = "UPDATE lands SET name = ?, world = ?, x1 = ?, z1 = ?, x2 = ?, z2 = ?, owner_id = ?, parent_land_id = ?, teleport_x = ?, teleport_y = ?, teleport_z = ?, teleport_yaw = ?, teleport_pitch = ? WHERE id = ?";
         
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -210,7 +224,22 @@ public class SqliteLandDAO implements LandDAO {
             } else {
                 stmt.setNull(8, java.sql.Types.INTEGER);
             }
-            stmt.setInt(9, land.getId());
+            
+            if (land.getTeleportX() != null) {
+                stmt.setDouble(9, land.getTeleportX());
+                stmt.setDouble(10, land.getTeleportY());
+                stmt.setDouble(11, land.getTeleportZ());
+                stmt.setFloat(12, land.getTeleportYaw());
+                stmt.setFloat(13, land.getTeleportPitch());
+            } else {
+                stmt.setNull(9, Types.DOUBLE);
+                stmt.setNull(10, Types.DOUBLE);
+                stmt.setNull(11, Types.DOUBLE);
+                stmt.setNull(12, Types.FLOAT);
+                stmt.setNull(13, Types.FLOAT);
+            }
+            
+            stmt.setInt(14, land.getId());
             
             stmt.executeUpdate();
         }
@@ -360,6 +389,16 @@ public class SqliteLandDAO implements LandDAO {
             land.setParentLandId(null);
         } else {
             land.setParentLandId(parentLandId);
+        }
+        
+        // 获取传送点信息
+        double teleportX = rs.getDouble("teleport_x");
+        if (!rs.wasNull()) {
+            land.setTeleportX(teleportX);
+            land.setTeleportY(rs.getDouble("teleport_y"));
+            land.setTeleportZ(rs.getDouble("teleport_z"));
+            land.setTeleportYaw(rs.getFloat("teleport_yaw"));
+            land.setTeleportPitch(rs.getFloat("teleport_pitch"));
         }
         
         return land;

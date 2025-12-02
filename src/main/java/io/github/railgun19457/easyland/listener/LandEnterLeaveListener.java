@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.Optional;
 
@@ -25,28 +26,37 @@ public class LandEnterLeaveListener implements Listener {
     }
 
     @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        handleMove(event.getPlayer(), event.getFrom(), event.getTo());
+    }
+
+    @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         // 优化性能：只在方块变化时检查
         if (event.getFrom().getBlockX() == event.getTo().getBlockX() &&
             event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
             return;
         }
+        
+        handleMove(event.getPlayer(), event.getFrom(), event.getTo());
+    }
 
-        Land fromLand = landManager.getLandAt(event.getFrom());
-        Land toLand = landManager.getLandAt(event.getTo());
+    private void handleMove(org.bukkit.entity.Player player, org.bukkit.Location from, org.bukkit.Location to) {
+        Land fromLand = landManager.getLandAt(from);
+        Land toLand = landManager.getLandAt(to);
 
         // 情况1：从野外进入领地
         if (fromLand == null && toLand != null) {
-            sendEnterNotification(event.getPlayer(), toLand);
+            sendEnterNotification(player, toLand);
         }
         // 情况2：从领地进入野外
         else if (fromLand != null && toLand == null) {
-            sendLeaveNotification(event.getPlayer(), fromLand);
+            sendLeaveNotification(player, fromLand);
         }
         // 情况3：从一个领地进入另一个领地
         else if (fromLand != null && toLand != null && fromLand.getId() != toLand.getId()) {
             // 显示进入新领地
-            sendEnterNotification(event.getPlayer(), toLand);
+            sendEnterNotification(player, toLand);
         }
     }
 
