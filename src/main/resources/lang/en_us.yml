@@ -1,169 +1,118 @@
-# English language file
-# Easyland Plugin - English
+# EasyLand English Language File
 
+# General Messages
 general:
-  only-players: "Only players can use this command."
-  no-permission: "§cYou do not have permission to perform this action!"
-  invalid-args: "§cInvalid arguments! Usage: %s"
-  reload-success: "§aConfiguration reloaded successfully!"
+  only-players: "§cOnly players can execute this command."
+  player-only-command: "§cThis command can only be executed by players."
+  no-permission: "§cYou don't have permission to execute this command."
+  invalid-args: "§cInvalid arguments. Usage: %s"
+  reload-success: "§aConfiguration reloaded successfully."
 
+# Permission Messages
 permission:
-  no-select: "§cYou do not have permission to select land!"
-  no-create: "§cYou do not have permission to create land!"
-  no-claim: "§cYou do not have permission to claim land!"
-  no-abandon: "§cYou do not have permission to abandon land!"
-  no-delete: "§cYou do not have permission to delete land!"
-  no-info: "§cYou do not have permission to view land info!"
-  no-list: "§cYou do not have permission to view land list!"
-  no-show: "§cYou do not have permission to show land boundaries!"
-  no-protection: "§cYou do not have permission to modify protection settings!"
+  no-claim: "§cYou don't have permission to claim land."
+  no-delete: "§cYou don't have permission to delete land."
+  no-list: "§cYou don't have permission to list lands."
+  no-info: "§cYou don't have permission to view land info."
+  no-create: "§cYou don't have permission to create land. (Admin permission required)"
+  no-abandon: "§cYou don't have permission to abandon land."
+  no-show: "§cYou don't have permission to show land boundaries."
+  no-protection: "§cYou don't have permission to manage protection rules."
+  no-rename: "§cYou don't have permission to rename land."
+  no-subclaim: "§cYou don't have permission to create sub-claims."
+  no-select: "§cYou don't have permission to use the selection tool."
+  admin-bypass: "§6[Admin] §eYou bypassed land protection."
+  admin-manage: "§6[Admin] §eYou are managing another player's land."
 
-select:
-  tool-received: "You have received the land selection tool. Right-click any block in a chunk to select."
-  need-selection: "Please use the tool to right-click and select two chunks first."
-  chunk-occupied: "§cThis chunk is already occupied by another land and cannot be selected."
-  point-selected: "Chunk selected: [%d, %d]"
-  tool-name: "§aLand Selection"
-
-create:
-  id-taken: "§cThis ID is already taken. Please choose a unique ID."
-  invalid-id: "§cInvalid ID. Only Chinese/English, numbers, underscores, hyphens allowed, up to 32 characters."
-  success: "Unclaimed land created. ID: %s. Use /easyland claim to claim."
-  area-occupied: "Land already exists in this area."
-  max-lands-reached: "§cYou have reached the maximum number of lands (%d)!"
-  max-chunks-reached: "§cThe number of chunks in this land exceeds the limit (%d)!"
-
+# Claim Land
 claim:
-  not-found: "§cNo unclaimed land found with this ID."
-  success: "Land claimed successfully!"
-  failed: "Claim failed. The land has already been claimed or an error occurred."
-  not-in-unclaimed: "You must stand in unclaimed land to claim!"
-  no-unclaimed-here: "Claim failed. No unclaimed land here or already claimed."
+  success: "§aSuccessfully claimed land!"
+  failed: "§cFailed to claim land."
 
-abandon:
-  not-found: "§cNo land with this ID found under your ownership."
-  success: "You have abandoned the land. The area is now unclaimed."
-  failed: "Abandon failed. An error occurred."
-  not-owner: "§cYou are not the owner of this land!"
-  no-land-to-abandon: "You have no land to abandon."
-
+# Delete Land
 delete:
-  not-found: "§cNo land found with this ID."
-  success: "Land deleted."
-  failed: "Delete failed. An error occurred."
-  usage: "Usage: /easyland remove <id>"
-  success-msg: "§cLand has been deleted."
-  not-found-msg: "§cNo land found to delete."
+  success: "§aSuccessfully deleted land!"
+  not-found: "§cLand not found."
 
-info:
-  header: "§6=== Land Info ==="
-  id: "§7ID: §f%s"
-  owner: "§7Owner: §f%s"
-  chunks: "§7Chunks: §f%d"
-  world: "§7World: §f%s"
-  created: "§7Created: §f%s"
-  unclaimed: "§7Status: §eUnclaimed"
-  protection-header: "§6Protection Settings:"
-  protection-enabled: "  §a✓ %s: Enabled"
-  protection-disabled: "  §c✗ %s: Disabled"
-  standing-on: "§aYou are standing on land owned by %s"
-  no-land-here: "§cThere is no land here."
-
+# Land List
 list:
+  empty: "§eYou don't have any lands yet."
+  all-lands: "All Lands (Server-wide)"
   header: "§6=== %s's Land List ==="
-  empty: "§7This player has no land."
-  item: "§7- §f%s §7(§e%d chunks§7)"
-  unclaimed-header: "§6=== Unclaimed Land List ==="
-  unclaimed-empty: "§7There is currently no unclaimed land."
-  server-list: "§eServer Land List:"
-  claimed-item: "§a[Claimed] §fID:%s World:%s Chunk Range: [%d,%d] ~ [%d,%d] Owner: %s"
-  unclaimed-item: "§7[Unclaimed] §fID:%s World:%s Chunk Range: [%d,%d] ~ [%d,%d]"
-  no-lands: "§cThere is currently no land on the server."
-  showing: "§aLand boundaries are now shown for you, lasting %d seconds. ID: %s"
-  unknown-owner: "Unknown"
+  item: "§e- Land %s (Area: %s blocks)"
 
-protection:
-  invalid-rule: "§cInvalid protection rule: %s"
-  rule-disabled: "§cProtection rule not enabled on server: %s"
-  not-owner: "§cOnly the land owner can modify protection settings!"
-  enabled: "§aProtection rule enabled: %s"
-  disabled: "§cProtection rule disabled: %s"
-  rules:
-    block: "Block Protection"
-    explosion: "Explosion Protection"
-    container: "Container Protection"
-    player: "Player Protection"
-  bucket-place: "§cYou cannot place water or lava in someone else's land!"
-  bucket-empty: "§cYou cannot take water or lava in someone else's land!"
-  container: "§cYou cannot interact with containers in someone else's land!"
-  self-protected: "§aYou are protected in your own land!"
-  cannot-attack: "§cYou cannot attack the owner or trusted players in someone else's land!"
-  protected: "§aYou are protected in this land!"
-
-enter:
-  message: "§aYou have entered %s's land%s"
-
-leave:
-  message: "§eYou have left %s's land%s"
-
-protection-message:
-  block: "§cYou cannot break or place blocks in this land!"
-  explosion: "§cThis land is protected from explosions!"
-  container: "§cYou cannot use containers in this land!"
-
+# Trust Player
 trust:
-  no-permission: "§cYou do not have permission to trust others!"
-  invalid-name: "§cInvalid player name format!"
-  cannot-trust-self: "§cYou cannot trust yourself!"
-  success: "Player %s is now trusted and can interact in your land."
-  failed: "Trust failed. You have no land or have already trusted this player."
-  untrust-no-permission: "§cYou do not have permission to untrust!"
-  untrust-success: "Trust removed for player %s."
-  untrust-failed: "Untrust failed. You have no land or have not trusted this player."
-  list-header: "§aYour land trust list:"
-  list-empty: "§eYou currently trust no players in your land."
-  list-no-permission: "§cYou do not have permission to view the trust list!"
-  no-land: "§cYou have no claimed land."
+  no-permission: "§cYou don't have permission to trust players."
+  cannot-trust-self: "§cYou cannot trust yourself."
+  invalid-name: "§cPlayer not found."
+  success: "§aSuccessfully trusted player %s!"
+  failed: "§cFailed to trust player."
+  untrust-no-permission: "§cYou don't have permission to untrust players."
+  untrust-success: "§aSuccessfully untrusted player %s!"
+  untrust-failed: "§cFailed to untrust player."
 
+# Land Info
+info:
+  no-land-here: "§cThere is no land here."
+  header: "§6=== Land Information ==="
+  id: "§eLand ID: %s"
+  unclaimed: "§eOwner: None"
+  owner: "§eOwner: %s"
+  world: "§eWorld: %s"
+  chunks: "§eArea: %s blocks"
+
+# Abandon Land
+abandon:
+  success: "§aSuccessfully abandoned land!"
+  failed: "§cFailed to abandon land."
+
+# Show Land Boundaries
+show:
+  no-permission: "§cYou don't have permission to show land boundaries."
+  no-land-here: "§cThere is no land here."
+  invalid-duration: "§cInvalid duration, maximum value is %s seconds."
+  success: "§aShowing land boundary for %s seconds."
+
+# Protection Rules
 rule:
-  no-permission: "§cYou do not have permission to manage land protection rules!"
-  no-land: "§cYou have no claimed land."
-  status-header: "§aYour land protection rule status:"
-  status-enabled: "§f- %s: §aEnabled%s"
-  status-disabled: "§f- %s: §cDisabled%s"
-  server-disabled: " §7(Server Disabled)"
-  usage-tip: "§eUse §f/easyland rule <rule> <on/off> §eto toggle protection rules"
-  invalid-rule: "§cInvalid protection rule! Valid rules: %s"
-  server-disabled-rule: "§cThis protection rule is disabled on the server and cannot be changed!"
-  invalid-action: "§cInvalid action! Please use: true/false, on/off, enable/disable"
-  set-success: "§aSet %s to: %s"
-  usage: "Usage: /easyland rule or /easyland rule <rule> <on/off>"
+  status-header: "§6=== Current Protection Status ==="
+  status-enabled: "§e%s: §aEnabled"
+  status-disabled: "§e%s: §cDisabled"
+  invalid-rule: "§cInvalid protection rule. Available rules: %s"
+  set-success: "§aSuccessfully set protection rule %s to %s."
+  usage-tip: "§eUsage: /easyland protection <rule> <on|off>"
 
+# Rename Land
+rename:
+  success: "§aSuccessfully renamed land to %s!"
+  failed: "§cFailed to rename land."
+
+# Sub-claim
+subclaim:
+  success: "§aSuccessfully created sub-claim! ID: %s"
+  failed: "§cFailed to create sub-claim."
+  select-positions: "§ePlease select two positions to create a sub-claim."
+
+# Selection Tool
+select:
+  given: "§aYou have been given the land selection tool! Left-click to set first position, right-click to set second position."
+
+# Help
 help:
-  header: "§6=== Easyland Help ==="
-  select: "§7/easyland select §f- Get selection tool"
-  create: "§7/easyland create <id> §f- Create unclaimed land"
-  claim: "§7/easyland claim [id] §f- Claim land"
-  abandon: "§7/easyland abandon <id> §f- Abandon land"
-  delete: "§7/easyland delete <id> §f- Delete land"
-  info: "§7/easyland info [id] §f- View land info"
-  list: "§7/easyland list [player] §f- View land list"
-  show: "§7/easyland show [duration] §f- Show land boundaries"
-  protection: "§7/easyland protection <rule> <enable/disable> §f- Protection settings"
-  reload: "§7/easyland reload §f- Reload configuration"
-
-land:
-  unknown-owner: "Unknown"
-  unknown-player: "Unknown player"
-  invalid-uuid: "Invalid UUID"
-
-log:
-  plugin-enabled: "EasylandPlugin enabled!"
-  plugin-disabled: "EasylandPlugin disabled!"
-  config-fixed: "Configuration file auto-fixed"
-  config-check-failed: "Configuration file check failed: %s"
-  protection-status: "Land protection rule status:"
-  protection-rule-status: "- %s: %s"
-  enabled: "Enabled"
-  disabled: "Disabled"
-  invalid-particle: "Invalid particle type: %s, using default: FIREWORK"
+  header: "§6=== EasyLand Help ==="
+  select: "§e/el select - Get land selection tool"
+  create: "§e/el create - Create land"
+  claim: "§e/el claim <landId> - Claim land"
+  abandon: "§e/el abandon <landId> - Abandon land"
+  delete: "§e/el delete <landId> - Delete land"
+  info: "§e/el info [landId] - View land information"
+  list: "§e/el list [page] - View land list"
+  show: "§e/el show [duration] - Show land boundaries"
+  trust: "§e/el trust <landId> <player> - Trust player"
+  untrust: "§e/el untrust <landId> <player> - Untrust player"
+  protection: "§e/el protection [rule] [on|off] - Manage protection rules"
+  rename: "§e/el rename <landId> <newName> - Rename land"
+  subclaim: "§e/el subclaim <parentLandId> - Create sub-claim"
+  reload: "§e/el reload - Reload configuration"
+  migrate: "§e/el migrate [confirm|cancel] - Migrate data from old YAML files to SQLite database"

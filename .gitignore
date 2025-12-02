@@ -1,3 +1,8 @@
 start.bat.*
 .vscode
 target/
+开发要求.md
+DESIGN.md
+REVIEW_REPORT.md
+TESTING.md
+MIGRATION_PLAN.md

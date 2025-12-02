@@ -1,192 +1,118 @@
-# 简体中文语言文件
-# Easyland Plugin - Simplified Chinese
+# EasyLand 中文语言文件
 
 # 通用消息
 general:
-  only-players: "只有玩家可以使用此指令。"
-  no-permission: "§c你没有权限执行此操作！"
-  invalid-args: "§c参数错误！使用方法：%s"
-  reload-success: "§a配置文件重新加载完成！"
+  only-players: "§c只有玩家可以执行此命令。"
+  player-only-command: "§c此命令只能由玩家执行。"
+  no-permission: "§c你没有权限执行此命令。"
+  invalid-args: "§c无效的参数。用法: %s"
+  reload-success: "§a配置文件已重新加载。"
 
-# 权限相关
+# 权限消息
 permission:
-  no-select: "§c你没有权限选择领地！"
-  no-create: "§c你没有权限创建领地！"
-  no-claim: "§c你没有权限认领领地！"
-  no-abandon: "§c你没有权限放弃领地！"
-  no-delete: "§c你没有权限删除领地！"
-  no-info: "§c你没有权限查看领地信息！"
-  no-list: "§c你没有权限查看领地列表！"
-  no-show: "§c你没有权限显示领地边界！"
-  no-protection: "§c你没有权限修改保护设置！"
-
-# 选择工具
-select:
-  tool-received: "已获得领地选择工具，请右键区块内任意方块进行选点。"
-  need-selection: "请先用工具右键选择两个区块。"
-  chunk-occupied: "§c该区块已被其他领地占用，无法选点。"
-  point-selected: "已选择区块: [%d, %d]"
-  tool-name: "§a领地选择"
-
-# 创建领地
-create:
-  id-taken: "§c该ID已被占用，请更换一个唯一ID。"
-  invalid-id: "§cID不合法，仅支持中英文、数字、下划线、短横线，且不超过32字符。"
-  success: "无主领地已创建，ID: %s，可用 /easyland claim 认领。"
-  area-occupied: "该区域已存在领地。"
-  max-lands-reached: "§c你已达到最大领地数量限制(%d)！"
-  max-chunks-reached: "§c该领地的区块数量超过了限制(%d)！"
+  no-claim: "§c你没有认领领地的权限。"
+  no-delete: "§c你没有删除领地的权限。"
+  no-list: "§c你没有查看领地列表的权限。"
+  no-info: "§c你没有查看领地信息的权限。"
+  no-create: "§c你没有创建领地的权限。（需要管理员权限）"
+  no-abandon: "§c你没有放弃领地的权限。"
+  no-show: "§c你没有显示领地边界的权限。"
+  no-protection: "§c你没有管理保护规则的权限。"
+  no-rename: "§c你没有重命名领地的权限。"
+  no-subclaim: "§c你没有创建子领地的权限。"
+  no-select: "§c你没有使用选择工具的权限。"
+  admin-bypass: "§6[管理员] §e你绕过了领地保护。"
+  admin-manage: "§6[管理员] §e你正在管理其他玩家的领地。"
 
 # 认领领地
 claim:
-  not-found: "§c未找到该ID的无主领地。"
-  success: "领地认领成功！"
-  failed: "认领失败，该领地已被认领或操作异常。"
-  not-in-unclaimed: "你必须站在无主领地内才能认领！"
-  no-unclaimed-here: "认领失败，该区域无可认领的领地或已被认领。"
-
-# 放弃领地
-abandon:
-  not-found: "§c未找到你拥有的该ID领地。"
-  success: "你已放弃领地，该区域变为无主领地。"
-  failed: "放弃失败，操作异常。"
-  not-owner: "§c你不是该领地的拥有者！"
-  no-land-to-abandon: "你没有可放弃的领地。"
+  success: "§a成功认领领地！"
+  failed: "§c认领领地失败。"
 
 # 删除领地
 delete:
-  not-found: "§c未找到该ID的领地。"
-  success: "领地已删除。"
-  failed: "删除失败，操作异常。"
-  usage: "用法: /easyland remove <id>"
-  success-msg: "§c领地已被删除。"
-  not-found-msg: "§c未找到可删除的领地。"
+  success: "§a成功删除领地！"
+  not-found: "§c找不到指定的领地。"
+
+# 领地列表
+list:
+  empty: "§e你还没有任何领地。"
+  all-lands: "全服所有领地"
+  header: "§6=== %s 的领地列表 ==="
+  item: "§e- 领地 %s (面积: %s 方块)"
+
+# 信任玩家
+trust:
+  no-permission: "§c你没有信任玩家的权限。"
+  cannot-trust-self: "§c你不能信任自己。"
+  invalid-name: "§c找不到指定的玩家。"
+  success: "§a成功信任玩家 %s！"
+  failed: "§c信任玩家失败。"
+  untrust-no-permission: "§c你没有取消信任玩家的权限。"
+  untrust-success: "§a成功取消信任玩家 %s！"
+  untrust-failed: "§c取消信任玩家失败。"
 
 # 领地信息
 info:
-  header: "§6=== 领地信息 ==="
-  id: "§7ID: §f%s"
-  owner: "§7拥有者: §f%s"
-  chunks: "§7区块数: §f%d"
-  world: "§7世界: §f%s"
-  created: "§7创建时间: §f%s"
-  unclaimed: "§7状态: §e无主领地"
-  protection-header: "§6保护设置:"
-  protection-enabled: "  §a✓ %s: 已启用"
-  protection-disabled: "  §c✗ %s: 已禁用"
-  standing-on: "§a你正站在 %s 的领地上"
   no-land-here: "§c这里没有领地。"
+  header: "§6=== 领地信息 ==="
+  id: "§e领地ID: %s"
+  unclaimed: "§e拥有者: 无"
+  owner: "§e拥有者: %s"
+  world: "§e世界: %s"
+  chunks: "§e面积: %s 方块"
 
-list:
-  header: "§6=== %s 的领地列表 ==="
-  empty: "§7该玩家没有任何领地。"
-  item: "§7- §f%s §7(§e%d区块§7)"
-  unclaimed-header: "§6=== 无主领地列表 ==="
-  unclaimed-empty: "§7当前没有无主领地。"
-  server-list: "§e服务器领地列表："
-  claimed-item: "§a[已认领] §fID:%s 世界:%s 区块范围: [%d,%d] ~ [%d,%d] 主人: %s"
-  unclaimed-item: "§7[未认领] §fID:%s 世界:%s 区块范围: [%d,%d] ~ [%d,%d]"
-  no-lands: "§c暂无任何领地。"
-  unknown-owner: "未知"
+# 放弃领地
+abandon:
+  success: "§a成功放弃领地！"
+  failed: "§c放弃领地失败。"
 
+# 显示领地边界
 show:
-  success: "正在显示领地边界，持续 %d 秒。"
-  invalid-duration: "§c持续时间必须在1-%d秒之间。"
-  no-land-here: "§c这里没有领地可以显示。"
-  no-permission: "§c你没有权限显示领地范围！"
-  duration-too-small: "§c显示时间必须大于0秒！"
-  duration-too-large: "§c显示时间不能超过%d秒！"
-  invalid-args: "§c参数错误！用法: /easyland show [领地ID] [时间(秒)]"
-  land-not-found: "§c未找到该ID的领地。"
-  no-lands: "§c服务器暂无任何领地。"
-  showing: "§a已为你显示领地范围，持续 %d 秒。ID: %s"
+  no-permission: "§c你没有显示领地边界的权限。"
+  no-land-here: "§c这里没有领地。"
+  invalid-duration: "§c持续时间无效，最大值为 %s 秒。"
+  success: "§a显示领地边界 %s 秒。"
 
-protection:
-  invalid-rule: "§c无效的保护规则：%s"
-  rule-disabled: "§c服务器未启用保护规则：%s"
-  not-owner: "§c只有领地拥有者才能修改保护设置！"
-  enabled: "§a已启用保护规则：%s"
-  disabled: "§c已禁用保护规则：%s"
-  rules:
-    block: "方块保护"
-    explosion: "爆炸保护"
-    container: "容器保护"
-    player: "玩家保护"
-  bucket-place: "§c你不能在他人的领地内倒水或岩浆！"
-  bucket-empty: "§c你不能在他人的领地内取水或岩浆！"
-  container: "§c你不能与他人领地内的容器交互！"
-  self-protected: "§a你在自己的领地内受到保护！"
-  cannot-attack: "§c你不能在他人的领地内攻击领主或受信任的玩家！"
-  protected: "§a你在领地内受到保护！"
-
-# 进入/离开领地
-enter:
-  message: "§a你已进入 %s 的领地%s"
-
-leave:
-  message: "§e你已离开 %s 的领地%s"
-
-# 保护消息
-protection-message:
-  block: "§c你无法在此领地破坏或放置方块！"
-  explosion: "§c此领地受爆炸保护！"
-  container: "§c你无法在此领地使用容器！"
-
-trust:
-  no-permission: "§c你没有权限信任他人！"
-  invalid-name: "§c玩家名格式不正确！"
-  cannot-trust-self: "§c你不能信任自己！"
-  success: "已信任玩家 %s，其可在你的领地内交互。"
-  failed: "信任失败，你没有领地或已信任该玩家。"
-  untrust-no-permission: "§c你没有权限取消信任！"
-  untrust-success: "已取消对玩家 %s 的信任。"
-  untrust-failed: "取消信任失败，你没有领地或未信任该玩家。"
-  list-header: "§a你的领地信任列表："
-  list-empty: "§e你的领地当前没有信任任何玩家。"
-  list-no-permission: "§c你没有权限查看信任列表！"
-  no-land: "§c你没有已认领的领地。"
-
+# 保护规则
 rule:
-  no-permission: "§c你没有权限管理领地保护规则！"
-  no-land: "§c你没有已认领的领地。"
-  status-header: "§a你的领地保护规则状态："
-  status-enabled: "§f- %s: §a启用%s"
-  status-disabled: "§f- %s: §c禁用%s"
-  server-disabled: " §7(服务器已禁用)"
-  usage-tip: "§e使用 §f/easyland rule <规则名> <on/off> §e来切换保护规则"
-  invalid-rule: "§c无效的保护规则！有效规则: %s"
-  server-disabled-rule: "§c服务器已禁用此保护规则，无法修改！"
-  invalid-action: "§c无效的操作！请使用: true/false, on/off, enable/disable"
-  set-success: "§a已将 %s 设置为: %s"
-  usage: "用法: /easyland rule 或 /easyland rule <规则名> <on/off>"
+  status-header: "§6=== 当前保护状态 ==="
+  status-enabled: "§e%s: §a启用"
+  status-disabled: "§e%s: §c禁用"
+  invalid-rule: "§c无效的保护规则。可用规则: %s"
+  set-success: "§a成功设置保护规则 %s 为 %s。"
+  usage-tip: "§e用法: /easyland protection <规则> <on|off>"
 
+# 重命名领地
+rename:
+  success: "§a成功将领地重命名为 %s！"
+  failed: "§c重命名领地失败。"
+
+# 子领地
+subclaim:
+  success: "§a成功创建子领地！ID: %s"
+  failed: "§c创建子领地失败。"
+  select-positions: "§e请选择两个位置来创建子领地。"
+
+# 选择工具
+select:
+  given: "§a已获得领地选择工具！左键点击设置第一个位置，右键点击设置第二个位置。"
+
+# 帮助
 help:
-  header: "§6=== Easyland 帮助 ==="
-  select: "§7/easyland select §f- 获取选择工具"
-  create: "§7/easyland create <id> §f- 创建无主领地"
-  claim: "§7/easyland claim [id] §f- 认领领地"
-  abandon: "§7/easyland abandon <id> §f- 放弃领地"
-  delete: "§7/easyland delete <id> §f- 删除领地"
-  info: "§7/easyland info [id] §f- 查看领地信息"
-  list: "§7/easyland list [player] §f- 查看领地列表"
-  show: "§7/easyland show [duration] §f- 显示领地边界"
-  protection: "§7/easyland protection <rule> <enable/disable> §f- 保护设置"
-  reload: "§7/easyland reload §f- 重新加载配置"
-
-# 领地相关
-land:
-  unknown-owner: "未知"
-  unknown-player: "未知玩家"
-  invalid-uuid: "无效UUID"
-
-# 日志消息
-log:
-  plugin-enabled: "EasylandPlugin 已启用！"
-  plugin-disabled: "EasylandPlugin 已禁用！"
-  config-fixed: "配置文件已自动修复"
-  config-check-failed: "配置文件检查失败: %s"
-  protection-status: "领地保护规则状态:"
-  protection-rule-status: "- %s: %s"
-  enabled: "启用"
-  disabled: "禁用"
-  invalid-particle: "无效的粒子类型: %s，使用默认值: FIREWORK"
+  header: "§6=== EasyLand 帮助 ==="
+  select: "§e/el select - 获取领地选择工具"
+  create: "§e/el create - 创建领地"
+  claim: "§e/el claim <landId> - 认领领地"
+  abandon: "§e/el abandon <landId> - 放弃领地"
+  delete: "§e/el delete <landId> - 删除领地"
+  info: "§e/el info [landId] - 查看领地信息"
+  list: "§e/el list [page] - 查看领地列表"
+  show: "§e/el show [duration] - 显示领地边界"
+  trust: "§e/el trust <landId> <player> - 信任玩家"
+  untrust: "§e/el untrust <landId> <player> - 取消信任玩家"
+  protection: "§e/el protection [rule] [on|off] - 管理保护规则"
+  rename: "§e/el rename <landId> <newName> - 重命名领地"
+  subclaim: "§e/el subclaim <parentLandId> - 创建子领地"
+  reload: "§e/el reload - 重新加载配置"
+  migrate: "§e/el migrate [confirm|cancel] - 从旧版YAML文件迁移数据到SQLite数据库"

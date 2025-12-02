@@ -1,71 +1,83 @@
-name: Easyland
-main: io.github.railgun19457.easyland.EasylandPlugin
-version: 1.4.1
-description: 一个简单的Minecraft插件，适用于paperMC ，为服务器提供领地管理
-author: Railgun19457
-website: https://github.com/railgun19457/Easyland
-api-version: 1.21
+name: EasyLand
+version: "${project.version}"
+main: io.github.railgun19457.easyland.EasyLand
+api-version: "1.21"
+api: "1.21"
+authors: [railgun19457]
+description: A simple land protection plugin.
+website: https://github.com/railgun19457/EasyLand
+
 commands:
   easyland:
-    description: 领地管理指令
-    usage: /easyland select | create | claim | unclaim | trust <玩家名> | untrust <玩家名> | trustlist
+    description: EasyLand主命令
     aliases: [el, land]
-    permission-message: §c你没有权限使用此指令！
-description: A PaperMC 1.21.8 plugin template.
+    usage: |
+      /easyland <子命令> [参数] - 玩家命令
+      /easyland reload - 控制台可用
+      /easyland migrate - 控制台可用
+    permission: easyland.use
+
 permissions:
-  easyland.select:
-    description: 使用 /easyland select 选择领地的权限
-    default: op
-  easyland.reload:
-    description: 使用 /easyland reload 重载配置的权限
-    default: op
-  easyland.help:
-    description: 使用 /easyland help 查看帮助的权限
-    default: true
-  easyland.create:
-    description: 使用 /easyland create 创建无主领地的权限
-    default: op
-  easyland.claim:
-    description: 使用 /easyland claim 认领领地的权限
-    default: true
-  easyland.unclaim:
-    description: 使用 /easyland unclaim 放弃领地的权限
-    default: true
-  easyland.trust:
-    description: 使用 /easyland trust 信任他人的权限，同时用于 /easyland trustlist
-    default: true
-  easyland.untrust:
-    description: 使用 /easyland untrust 取消信任的权限
-    default: true
-  easyland.show:
-    description: 使用 /easyland show 显示领地范围的权限
-    default: true
-  easyland.list:
-    description: 使用 /easyland list 查看领地列表的权限
-    default: true
-  easyland.remove:
-    description: 使用 /easyland remove 删除领地的权限
-    default: op
-  easyland.rule:
-    description: 使用 /easyland rule 管理领地保护规则的权限
+  easyland.*:
+    description: EasyLand所有权限
+    children:
+      easyland.use: true
+      easyland.admin: true
+  easyland.use:
+    description: 使用EasyLand基本命令
     default: true
   easyland.admin:
-    description: 管理员权限组，包含所有管理功能
+    description: EasyLand管理员权限 - OP自动拥有，可管理所有领地并绕过所有保护
     default: op
     children:
-      easyland.select: true
-      easyland.reload: true
-      easyland.help: true
       easyland.create: true
-      easyland.claim: true
-      easyland.unclaim: true
-      easyland.trust: true
-      easyland.untrust: true
-      easyland.show: true
-      easyland.list: true
-      easyland.remove: true
-      easyland.rule: true
+      easyland.delete: true
+      easyland.reload: true
+      easyland.migrate: true
       easyland.bypass: true
+      easyland.admin.manage: true
   easyland.bypass:
-    description: 绕过领地保护的管理员权限
+    description: 绕过所有领地保护
+    default: op
+  easyland.admin.manage:
+    description: 管理任何玩家的领地
+    default: op
+  easyland.select:
+    description: 获取领地选择工具
+    default: true
+  easyland.create:
+    description: 创建领地（管理员命令）
+    default: op
+  easyland.claim:
+    description: 认领领地
+    default: true
+  easyland.abandon:
+    description: 放弃领地
+    default: true
+  easyland.delete:
+    description: 删除领地（自己的领地或管理员）
+    default: true
+  easyland.info:
+    description: 查看领地信息
+    default: true
+  easyland.list:
+    description: 查看领地列表
+    default: true
+  easyland.show:
+    description: 显示领地边界
+    default: true
+  easyland.trust:
+    description: 信任/取消信任玩家
+    default: true
+  easyland.protection:
+    description: 管理领地保护规则
+    default: true
+  easyland.rename:
+    description: 重命名领地
+    default: true
+  easyland.subclaim:
+    description: 创建子领地
+    default: true
+  easyland.migrate:
+    description: 从旧版YAML文件迁移数据到SQLite数据库（管理员命令）
     default: op
