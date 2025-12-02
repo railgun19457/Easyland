@@ -498,6 +498,13 @@ public class MigrationManager {
             return playerIdCache.get(uuid);
         }
 
+        // 尝试获取真实名字
+        String realName = null;
+        org.bukkit.OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(uuid);
+        if (offlinePlayer != null && offlinePlayer.getName() != null) {
+            realName = offlinePlayer.getName();
+        }
+
         // 从数据库中查找或创建
         String selectSql = "SELECT * FROM players WHERE uuid = ?";
         try (java.sql.PreparedStatement stmt = conn.prepareStatement(selectSql)) {
@@ -506,6 +513,19 @@ public class MigrationManager {
             try (java.sql.ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     int playerId = rs.getInt("id");
+                    String currentName = rs.getString("name");
+                    
+                    // 如果当前名字是 Unknown 且我们获取到了真实名字，则更新
+                    if (realName != null && ("Unknown".equals(currentName) || currentName == null)) {
+                         String updateSql = "UPDATE players SET name = ? WHERE id = ?";
+                         try (java.sql.PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                             updateStmt.setString(1, realName);
+                             updateStmt.setInt(2, playerId);
+                             updateStmt.executeUpdate();
+                             logger.info("更新玩家 " + uuid + " 的名字为 " + realName);
+                         }
+                    }
+
                     playerIdCache.put(uuid, playerId);
                     return playerId;
                 }
@@ -513,10 +533,11 @@ public class MigrationManager {
         }
 
         // 玩家不存在，创建新玩家
+        String playerName = realName != null ? realName : "Unknown";
         String insertSql = "INSERT INTO players (uuid, name) VALUES (?, ?)";
         try (java.sql.PreparedStatement stmt = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, uuid.toString());
-            stmt.setString(2, "Unknown");
+            stmt.setString(2, playerName);
             stmt.executeUpdate();
 
             try (java.sql.ResultSet generatedKeys = stmt.getGeneratedKeys()) {

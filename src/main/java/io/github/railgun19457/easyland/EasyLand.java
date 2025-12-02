@@ -10,6 +10,7 @@ import io.github.railgun19457.easyland.core.PermissionManager;
 import io.github.railgun19457.easyland.listener.BlockProtectionListener;
 import io.github.railgun19457.easyland.listener.ContainerProtectionListener;
 import io.github.railgun19457.easyland.listener.ExplosionProtectionListener;
+import io.github.railgun19457.easyland.listener.LandEnterLeaveListener;
 import io.github.railgun19457.easyland.listener.PlayerProtectionListener;
 import io.github.railgun19457.easyland.listener.SelectionToolListener;
 import io.github.railgun19457.easyland.core.SelectionManager;
@@ -185,6 +186,10 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         // 注册选择工具监听器
         getServer().getPluginManager().registerEvents(
             new SelectionToolListener(this, selectionManager, i18nManager, permissionManager), this);
+
+        // 注册领地进出监听器
+        getServer().getPluginManager().registerEvents(
+            new LandEnterLeaveListener(this), this);
         
         logger.info("事件监听器注册完成。");
     }

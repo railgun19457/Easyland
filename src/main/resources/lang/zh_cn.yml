@@ -24,6 +24,12 @@ permission:
   admin-bypass: "§6[管理员] §e你绕过了领地保护。"
   admin-manage: "§6[管理员] §e你正在管理其他玩家的领地。"
 
+# 领地提示
+notification:
+  enter-land: "§a进入领地: %s §7(主人: %s)"
+  leave-land: "§e离开领地: %s"
+  enter-wilderness: "§a进入野外"
+
 # 创建领地
 create:
   success: "§a成功创建领地！ID: %s"
@@ -80,6 +86,8 @@ abandon:
 show:
   no-permission: "§c你没有显示领地边界的权限。"
   no-land-here: "§c这里没有领地。"
+  no-land-found: "§c找不到指定的领地。"
+  showing-nearest: "§a正在显示最近的领地: %s"
   invalid-duration: "§c持续时间无效，最大值为 %s 秒。"
   success: "§a显示领地边界 %s 秒。"
 

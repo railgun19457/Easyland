@@ -28,6 +28,26 @@ public interface LandDAO {
     Optional<Land> getLandById(int id) throws SQLException;
 
     /**
+     * Retrieves a land by its name.
+     *
+     * @param name The name of the land
+     * @return An Optional containing the land if found, otherwise empty
+     * @throws SQLException if a database access error occurs
+     */
+    Optional<Land> getLandByName(String name) throws SQLException;
+
+    /**
+     * Retrieves the nearest land to the specified location.
+     *
+     * @param world The world name
+     * @param x     The X coordinate
+     * @param z     The Z coordinate
+     * @return An Optional containing the nearest land if found, otherwise empty
+     * @throws SQLException if a database access error occurs
+     */
+    Optional<Land> getNearestLand(String world, int x, int z) throws SQLException;
+
+    /**
      * Retrieves all lands owned by a specific player.
      *
      * @param ownerId The ID of the owner

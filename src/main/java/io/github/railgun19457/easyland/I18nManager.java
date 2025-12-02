@@ -138,11 +138,11 @@ public class I18nManager {
             //logger.info("Loaded keys count: " + config.getKeys(true).size());
             
             // 检查 list 相关的键是否存在
-            if (config.contains("list")) {
-                logger.info("'list' section found, keys: " + config.getConfigurationSection("list").getKeys(false));
-            } else {
-                logger.warning("'list' section NOT found in " + languageCode);
-            }
+            //if (config.contains("list")) {
+            //    logger.info("'list' section found, keys: " + config.getConfigurationSection("list").getKeys(false));
+            //} else {
+            //    logger.warning("'list' section NOT found in " + languageCode);
+            //}
         } catch (Exception e) {
             logger.warning("Failed to load language file from disk: " + languageCode + " - " + e.getMessage());
             e.printStackTrace();

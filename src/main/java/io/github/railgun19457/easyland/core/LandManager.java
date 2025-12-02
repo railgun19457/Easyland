@@ -137,21 +137,12 @@ public class LandManager {
      * @param landId The ID of the land to claim
      * @return true if claiming was successful, false otherwise
      */
-    public boolean claimLand(org.bukkit.entity.Player player, String landId) {
+    public boolean claimLand(org.bukkit.entity.Player player, String landIdOrName) {
         try {
-            // Parse land ID
-            int id;
-            try {
-                id = Integer.parseInt(landId);
-            } catch (NumberFormatException e) {
-                logger.info("Invalid land ID: " + landId);
-                return false;
-            }
-
-            // Get the land
-            Optional<Land> landOpt = landDAO.getLandById(id);
+            // Get the land by ID or Name
+            Optional<Land> landOpt = getLandByIdOrName(landIdOrName);
             if (!landOpt.isPresent()) {
-                logger.info("Land not found: " + landId);
+                logger.info("Land not found: " + landIdOrName);
                 return false;
             }
 
@@ -159,7 +150,7 @@ public class LandManager {
             
             // Check if land is already owned
             if (land.getOwnerId() != 0) {
-                logger.info("Land is already owned: " + landId);
+                logger.info("Land is already owned: " + landIdOrName);
                 return false;
             }
 
@@ -181,7 +172,7 @@ public class LandManager {
             // Invalidate cache for the affected land
             landCache.invalidateLandCache(land.getId());
             
-            logger.info("Player " + player.getName() + " claimed land " + landId);
+            logger.info("Player " + player.getName() + " claimed land " + land.getId());
             return true;
             
         } catch (SQLException e) {
@@ -689,6 +680,36 @@ public class LandManager {
     }
     
     /**
+     * Gets a land by its name.
+     *
+     * @param name The name of the land
+     * @return An Optional containing the land if found, otherwise empty
+     */
+    public Optional<Land> getLandByName(String name) {
+        try {
+            return landDAO.getLandByName(name);
+        } catch (SQLException e) {
+            logger.severe("Failed to get land by name: " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Gets the nearest land to a location.
+     *
+     * @param location The location to check
+     * @return An Optional containing the nearest land if found, otherwise empty
+     */
+    public Optional<Land> getNearestLand(Location location) {
+        try {
+            return landDAO.getNearestLand(location.getWorld().getName(), location.getBlockX(), location.getBlockZ());
+        } catch (SQLException e) {
+            logger.severe("Failed to get nearest land: " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+    
+    /**
      * Gets all lands in the database.
      *
      * @return A list of all lands
@@ -739,29 +760,42 @@ public class LandManager {
     }
     
     /**
+     * Helper method to get a land by ID or Name.
+     *
+     * @param landIdOrName The ID or Name of the land
+     * @return An Optional containing the land if found, otherwise empty
+     */
+    public Optional<Land> getLandByIdOrName(String landIdOrName) {
+        // Try parsing as ID first
+        try {
+            int id = Integer.parseInt(landIdOrName);
+            Optional<Land> land = getLandById(id);
+            if (land.isPresent()) {
+                return land;
+            }
+        } catch (NumberFormatException ignored) {
+            // Not an ID, try as name
+        }
+        
+        // Try as name
+        return getLandByName(landIdOrName);
+    }
+
+    /**
      * 获取并验证玩家是否为领地的所有者。
      *
      * @param player 要验证的玩家
-     * @param landId 领地ID
+     * @param landIdOrName 领地ID或名称
      * @return 如果验证通过返回领地对象
      * @throws LandNotFoundException 如果领地不存在
      */
-    private Land getAndVerifyLandOwner(org.bukkit.entity.Player player, String landId) throws LandNotFoundException {
+    private Land getAndVerifyLandOwner(org.bukkit.entity.Player player, String landIdOrName) throws LandNotFoundException {
         try {
-            // 解析领地ID
-            int id;
-            try {
-                id = Integer.parseInt(landId);
-            } catch (NumberFormatException e) {
-                logger.info("Invalid land ID: " + landId);
-                throw new LandNotFoundException(landId);
-            }
-
             // 获取领地
-            Optional<Land> landOpt = landDAO.getLandById(id);
+            Optional<Land> landOpt = getLandByIdOrName(landIdOrName);
             if (!landOpt.isPresent()) {
-                logger.info("Land not found: " + landId);
-                throw new LandNotFoundException(landId);
+                logger.info("Land not found: " + landIdOrName);
+                throw new LandNotFoundException(landIdOrName);
             }
 
             Land land = landOpt.get();
@@ -778,7 +812,7 @@ public class LandManager {
             
             // 检查玩家是否拥有该领地
             if (land.getOwnerId() != dbPlayer.getId()) {
-                logger.info("Player does not own land: " + landId);
+                logger.info("Player does not own land: " + landIdOrName);
                 return null;
             }
             
@@ -794,41 +828,26 @@ public class LandManager {
      * 获取并验证玩家是否为领地的所有者或管理员。
      *
      * @param player 要验证的玩家
-     * @param landId 领地ID
+     * @param landIdOrName 领地ID或名称
      * @return 如果验证通过返回领地对象
      * @throws LandNotFoundException 如果领地不存在
      */
-    private Land getAndVerifyLandOwnerOrAdmin(org.bukkit.entity.Player player, String landId) throws LandNotFoundException {
-        try {
-            // 解析领地ID
-            int id;
-            try {
-                id = Integer.parseInt(landId);
-            } catch (NumberFormatException e) {
-                logger.info("Invalid land ID: " + landId);
-                throw new LandNotFoundException(landId);
-            }
+    private Land getAndVerifyLandOwnerOrAdmin(org.bukkit.entity.Player player, String landIdOrName) throws LandNotFoundException {
+        // 获取领地
+        Optional<Land> landOpt = getLandByIdOrName(landIdOrName);
+        if (!landOpt.isPresent()) {
+            logger.info("Land not found: " + landIdOrName);
+            throw new LandNotFoundException(landIdOrName);
+        }
 
-            // 获取领地
-            Optional<Land> landOpt = landDAO.getLandById(id);
-            if (!landOpt.isPresent()) {
-                logger.info("Land not found: " + landId);
-                throw new LandNotFoundException(landId);
-            }
-
-            Land land = landOpt.get();
-            
-            // 使用PermissionManager检查是否可以管理领地
-            if (!permissionManager.canManageLand(player, land)) {
-                logger.info("Player does not own land and is not admin: " + landId);
-                return null;
-            }
-            
-            return land;
-            
-        } catch (SQLException e) {
-            logger.severe("Failed to verify land owner or admin: " + e.getMessage());
+        Land land = landOpt.get();
+        
+        // 使用PermissionManager检查是否可以管理领地
+        if (!permissionManager.canManageLand(player, land)) {
+            logger.info("Player does not own land and is not admin: " + landIdOrName);
             return null;
         }
+        
+        return land;
     }
 }

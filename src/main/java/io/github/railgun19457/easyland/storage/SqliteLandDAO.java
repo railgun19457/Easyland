@@ -75,6 +75,59 @@ public class SqliteLandDAO implements LandDAO {
     }
 
     @Override
+    public Optional<Land> getLandByName(String name) throws SQLException {
+        String sql = "SELECT * FROM lands WHERE name = ?";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, name);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToLand(rs));
+                }
+            }
+        }
+        
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Land> getNearestLand(String world, int x, int z) throws SQLException {
+        // Calculate distance using squared Euclidean distance to avoid square roots in SQL if possible,
+        // but SQLite doesn't have a simple distance function.
+        // We'll select lands in the same world and order by distance.
+        // Distance = (center_x - x)^2 + (center_z - z)^2
+        // center_x = (x1 + x2) / 2, center_z = (z1 + z2) / 2
+        // To simplify, we can just use the distance to the center of the land.
+        
+        String sql = "SELECT *, " +
+                     "((x1 + x2) / 2 - ?) * ((x1 + x2) / 2 - ?) + " +
+                     "((z1 + z2) / 2 - ?) * ((z1 + z2) / 2 - ?) AS distance_sq " +
+                     "FROM lands WHERE world = ? " +
+                     "ORDER BY distance_sq ASC LIMIT 1";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, x);
+            stmt.setInt(2, x);
+            stmt.setInt(3, z);
+            stmt.setInt(4, z);
+            stmt.setString(5, world);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToLand(rs));
+                }
+            }
+        }
+        
+        return Optional.empty();
+    }
+
+    @Override
     public List<Land> getLandsByOwner(int ownerId) throws SQLException {
         String sql = "SELECT * FROM lands WHERE owner_id = ? ORDER BY id";
         List<Land> lands = new ArrayList<>();

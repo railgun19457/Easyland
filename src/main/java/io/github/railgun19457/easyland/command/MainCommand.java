@@ -507,8 +507,29 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         if (land.getOwnerId() == 0) {
             player.sendMessage(i18nManager.getMessage("info.unclaimed"));
         } else {
-            // 这里需要从数据库获取玩家名称
-            player.sendMessage(i18nManager.getMessage("info.owner", "PlayerID:" + land.getOwnerId()));
+            String ownerName = "Unknown";
+            try {
+                Optional<io.github.railgun19457.easyland.model.Player> ownerOpt = plugin.getPlayerDAO().getPlayerById(land.getOwnerId());
+                if (ownerOpt.isPresent()) {
+                    io.github.railgun19457.easyland.model.Player owner = ownerOpt.get();
+                    ownerName = owner.getName();
+                    
+                    // 尝试修复 Unknown 的名字
+                    if ("Unknown".equals(ownerName) || ownerName == null) {
+                        java.util.UUID ownerUuid = owner.getUuid();
+                        org.bukkit.OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(ownerUuid);
+                        if (offlinePlayer != null && offlinePlayer.getName() != null) {
+                            ownerName = offlinePlayer.getName();
+                            // 更新数据库
+                            owner.setName(ownerName);
+                            plugin.getPlayerDAO().updatePlayer(owner);
+                        }
+                    }
+                }
+            } catch (java.sql.SQLException e) {
+                logger.warning("Error fetching owner name for land " + land.getId() + ": " + e.getMessage());
+            }
+            player.sendMessage(i18nManager.getMessage("info.owner", ownerName));
         }
         
         player.sendMessage(i18nManager.getMessage("info.world", land.getWorld()));
@@ -585,21 +606,57 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
         
         int duration = plugin.getConfig().getInt("visualization.default-duration", 10);
+        String targetLandName = null;
+
         if (args.length >= 2) {
+            // 尝试解析第一个参数为持续时间
             try {
                 duration = Integer.parseInt(args[1]);
-                if (duration < 1) {
-                    player.sendMessage(i18nManager.getMessage("show.invalid-duration", String.valueOf(plugin.getConfig().getInt("visualization.max-duration", 60))));
-                    return;
-                }
+                // 如果成功，说明是持续时间，没有指定领地（使用当前/最近）
             } catch (NumberFormatException e) {
-                player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " show [duration]"));
-                return;
+                // 不是数字，视为领地名称/ID
+                targetLandName = args[1];
+                
+                // 检查第二个参数是否为持续时间
+                if (args.length >= 3) {
+                    try {
+                        duration = Integer.parseInt(args[2]);
+                    } catch (NumberFormatException ex) {
+                        // 忽略无效的持续时间
+                    }
+                }
             }
         }
         
-        // Get the land at the player's location
-        Land land = landManager.getLandAt(player.getLocation());
+        if (duration < 1) {
+            player.sendMessage(i18nManager.getMessage("show.invalid-duration", String.valueOf(plugin.getConfig().getInt("visualization.max-duration", 60))));
+            return;
+        }
+        
+        Land land = null;
+        if (targetLandName != null) {
+            Optional<Land> landOpt = landManager.getLandByIdOrName(targetLandName);
+            if (landOpt.isPresent()) {
+                land = landOpt.get();
+            } else {
+                player.sendMessage(i18nManager.getMessage("show.no-land-found"));
+                return;
+            }
+        } else {
+            // 未指定目标，尝试当前位置
+            land = landManager.getLandAt(player.getLocation());
+            
+            // 如果不在领地内，尝试最近的领地
+            if (land == null) {
+                Optional<Land> nearest = landManager.getNearestLand(player.getLocation());
+                if (nearest.isPresent()) {
+                    land = nearest.get();
+                    String landDisplayName = land.getName() != null ? land.getName() : String.valueOf(land.getId());
+                    player.sendMessage(i18nManager.getMessage("show.showing-nearest", landDisplayName));
+                }
+            }
+        }
+        
         if (land == null) {
             player.sendMessage(i18nManager.getMessage("show.no-land-here"));
             return;
@@ -872,17 +929,18 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "claim":
                 case "delete":
                 case "abandon":
-                    // 补全玩家拥有的领地ID
+                case "rename":
+                    // 补全玩家拥有的领地ID和名称
                     if (args.length == 2 && player != null) {
-                        completions.addAll(getPlayerLandIds(player));
+                        completions.addAll(getPlayerLandCompletions(player));
                     }
                     break;
                     
                 case "trust":
                 case "untrust":
                     if (args.length == 2 && player != null) {
-                        // 补全玩家拥有的领地ID
-                        completions.addAll(getPlayerLandIds(player));
+                        // 补全玩家拥有的领地ID和名称
+                        completions.addAll(getPlayerLandCompletions(player));
                     } else if (args.length == 3 && player != null) {
                         // 补全在线玩家名称
                         String partial = args[2].toLowerCase();
@@ -896,8 +954,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     
                 case "info":
                     if (args.length == 2 && player != null) {
-                        // 补全所有领地ID
-                        completions.addAll(getAllLandIds());
+                        // 补全所有领地ID和名称
+                        completions.addAll(getAllLandCompletions());
                     }
                     break;
                     
@@ -916,10 +974,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     
                 case "show":
                     if (args.length == 2) {
-                        // 补全持续时间
-                        completions.add("10");
-                        completions.add("20");
-                        completions.add("30");
+                        // 补全领地名称
+                        completions.addAll(getAllLandCompletions());
                     }
                     break;
                     
@@ -935,7 +991,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     } else if (args.length == 3) {
                         // 补全开关选项
                         String partial = args[2].toLowerCase();
-                        for (String option : Arrays.asList("on", "off", "true", "false", "enable", "disable")) {
+                        for (String option : Arrays.asList("on", "off")) {
                             if (option.startsWith(partial)) {
                                 completions.add(option);
                             }
@@ -1020,35 +1076,48 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
-     * 获取玩家拥有的领地ID列表。
+     * 获取玩家拥有的领地ID和名称列表。
      */
-    private List<String> getPlayerLandIds(Player player) {
-        List<String> landIds = new ArrayList<>();
+    private List<String> getPlayerLandCompletions(Player player) {
+        List<String> completions = new ArrayList<>();
         try {
+            // 获取所有领地（不分页，或者获取足够多）
+            // 这里假设 listPlayerLands 支持获取所有，或者我们只获取第一页
+            // 实际上应该有一个方法获取所有领地而不分页，或者分页很大
+            // 为了简单起见，我们暂时只获取第一页，或者需要修改 LandManager 增加 getAllPlayerLands
+            // 考虑到性能，tab补全不应该查询太多数据。
+            // 暂时使用 listPlayerLands(uuid, 1) 并假设每页数量足够大，或者循环获取
+            // 但为了响应速度，只获取第一页可能是一个妥协。
+            // 更好的做法是在 LandManager 中增加 getPlayerLandNames(uuid)
+            
             List<Land> lands = landManager.listPlayerLands(player.getUniqueId(), 1);
             for (Land land : lands) {
-                landIds.add(String.valueOf(land.getId()));
+                if (land.getName() != null) {
+                    completions.add(land.getName());
+                }
             }
         } catch (Exception e) {
-            // 忽略错误，返回空列表
+            // 忽略错误
         }
-        return landIds;
+        return completions;
     }
     
     /**
-     * 获取所有领地ID列表。
+     * 获取所有领地ID和名称列表。
      */
-    private List<String> getAllLandIds() {
-        List<String> landIds = new ArrayList<>();
+    private List<String> getAllLandCompletions() {
+        List<String> completions = new ArrayList<>();
         try {
-            List<Land> allLands = landManager.getAllLands();
+            List<Land> allLands = landManager.getAllLands(); // 这个方法返回所有领地
             for (Land land : allLands) {
-                landIds.add(String.valueOf(land.getId()));
+                if (land.getName() != null) {
+                    completions.add(land.getName());
+                }
             }
         } catch (Exception e) {
-            // 忽略错误，返回空列表
+            // 忽略错误
         }
-        return landIds;
+        return completions;
     }
     
     /**
