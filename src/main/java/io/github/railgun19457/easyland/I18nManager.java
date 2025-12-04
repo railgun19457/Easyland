@@ -250,6 +250,30 @@ public class I18nManager {
     }
 
     /**
+     * Gets a list of strings for the current language.
+     *
+     * @param key The message key
+     * @return The list of strings, or an empty list if not found
+     */
+    public java.util.List<String> getStringList(String key) {
+        if (currentLanguage == null) {
+            return new java.util.ArrayList<>();
+        }
+
+        java.util.List<String> list = currentLanguage.getStringList(key);
+        if (list == null || list.isEmpty()) {
+            // Try default language
+            String defaultLangCode = plugin.getConfig().getString("language.default", "zh_cn");
+            FileConfiguration defaultLang = languages.get(defaultLangCode);
+            if (defaultLang != null) {
+                list = defaultLang.getStringList(key);
+            }
+        }
+        
+        return list != null ? list : new java.util.ArrayList<>();
+    }
+
+    /**
      * Gets the current language code.
      *
      * @return The current language code

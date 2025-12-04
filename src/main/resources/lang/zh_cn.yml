@@ -7,6 +7,7 @@ general:
   no-permission: "§c你没有权限执行此命令。"
   invalid-args: "§c无效的参数。用法: %s"
   reload-success: "§a配置文件已重新加载。"
+  unknown: "未知"
 
 # 权限消息
 permission:
@@ -84,6 +85,8 @@ info:
   flag-enabled: "§a%s"
   flag-disabled: "§c%s"
   flag-separator: "§7, "
+  rules-header: "§6保护规则:"
+  rule-format: "  §e%s (%s): %s"
 
 # 放弃领地
 abandon:
@@ -107,6 +110,9 @@ rule:
   status-header: "§6=== 领地规则 ==="
   status-enabled: "§e%s: §a启用"
   status-disabled: "§e%s: §c禁用"
+  status-allow: "§a允许"
+  status-deny: "§c禁止"
+  format: "§e%s (%s): %s"
 
 # 传送点
 setspawn:
@@ -182,3 +188,26 @@ migrate:
   failed-file-instruction: "§e[Easyland] 请确保旧版数据文件已正确放置在插件数据目录的 oldfiles/ 文件夹中。"
   failed-check-console: "§e[Easyland] 请检查控制台获取详细错误信息。"
   cancelled: "§e[Easyland] 数据迁移已取消。"
+
+# 标志描述
+flags:
+  build: "允许建造/放置方块"
+  break: "允许破坏方块"
+  interact: "允许与方块交互"
+  use: "允许使用物品"
+  enter: "允许进入领地"
+  mob_spawning: "允许怪物生成"
+  pvp: "允许玩家对战"
+  pve: "允许PVE"
+  explosions: "允许爆炸"
+  fire_spread: "允许火焰蔓延"
+
+# 工具
+tool:
+  name: "&6&l✦ EasyLand 领地选择工具 ✦"
+  lore:
+    - ""
+    - "&e▸ 左键点击 &a设置第一个位置"
+    - "&e▸ 右键点击 &a设置第二个位置"
+    - ""
+    - "&7&o选择完成后使用 /el create 创建领地"

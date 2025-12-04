@@ -582,26 +582,13 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(i18nManager.getMessage("info.area", String.valueOf(calculateArea(land))));
         
         // 显示保护规则
-        if (land.getFlags() != null && !land.getFlags().isEmpty()) {
-            StringBuilder flagsBuilder = new StringBuilder();
-            String separator = i18nManager.getMessage("info.flag-separator");
-            boolean first = true;
-            
-            for (io.github.railgun19457.easyland.model.LandFlag flag : land.getFlags()) {
-                if (!first) {
-                    flagsBuilder.append(separator);
-                }
-                String flagDesc = flag.getDescription();
-                String msg = i18nManager.getMessage("info.flag-enabled", flagDesc);
-                if (msg == null) {
-                    msg = "§a" + flagDesc;
-                }
-                flagsBuilder.append(msg);
-                first = false;
-            }
-            player.sendMessage(i18nManager.getMessage("info.flags", flagsBuilder.toString()));
-        } else {
-            player.sendMessage(i18nManager.getMessage("info.flags", "None"));
+        player.sendMessage(i18nManager.getMessage("info.rules-header"));
+        java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> flagMap = land.getFlagMap();
+        
+        for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+            boolean enabled = flagMap.getOrDefault(flag, false);
+            String status = enabled ? i18nManager.getMessage("rule.status-allow") : i18nManager.getMessage("rule.status-deny");
+            player.sendMessage(i18nManager.getMessage("info.rule-format", i18nManager.getMessage("flags." + flag.getName()), flag.getName(), status));
         }
     }
     
@@ -889,8 +876,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> flags = land.getFlagMap();
         boolean enabled = flags.getOrDefault(flag, false);
 
-        String status = enabled ? "§aTrue" : "§cFalse";
-        player.sendMessage("§e" + rule + ": " + status);
+        String status = enabled ? i18nManager.getMessage("rule.status-allow") : i18nManager.getMessage("rule.status-deny");
+        player.sendMessage(i18nManager.getMessage("rule.format", i18nManager.getMessage("flags." + flag.getName()), flag.getName(), status));
     }
     
     /**
@@ -1239,20 +1226,13 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     
                 case "rule":
                     if (args.length == 2) {
-                        // 补全规则或领地
-                        completions.addAll(PROTECTION_RULES);
+                        // 只补全领地
                         if (player != null) {
                             completions.addAll(getPlayerLandCompletions(player));
                         }
                     } else if (args.length == 3) {
-                        String arg1 = args[1].toLowerCase();
-                        if (PROTECTION_RULES.contains(arg1)) {
-                            // args[1] 是规则，args[2] 是值
-                            completions.addAll(Arrays.asList("true", "false"));
-                        } else {
-                            // args[1] 是领地，args[2] 是规则
-                            completions.addAll(PROTECTION_RULES);
-                        }
+                        // args[1] 是领地，args[2] 是规则
+                        completions.addAll(PROTECTION_RULES);
                     } else if (args.length == 4) {
                         // args[1] 领地，args[2] 规则，args[3] 值
                         completions.addAll(Arrays.asList("true", "false"));
@@ -1301,27 +1281,18 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         org.bukkit.inventory.ItemStack tool = new org.bukkit.inventory.ItemStack(org.bukkit.Material.WOODEN_HOE);
         org.bukkit.inventory.meta.ItemMeta meta = tool.getItemMeta();
         if (meta != null) {
-            // 设置发光的金色名称
-            meta.displayName(net.kyori.adventure.text.Component.text("✦ EasyLand 领地选择工具 ✦")
-                .color(net.kyori.adventure.text.format.NamedTextColor.GOLD)
-                .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD, true)
+            // 设置名称
+            String name = i18nManager.getMessage("tool.name");
+            meta.displayName(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(name)
                 .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
             
-            // 设置彩色说明文字
+            // 设置说明文字
+            List<String> loreStrings = i18nManager.getStringList("tool.lore");
             List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
-            lore.add(net.kyori.adventure.text.Component.text(""));
-            lore.add(net.kyori.adventure.text.Component.text("▸ 左键点击 ")
-                .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW)
-                .append(net.kyori.adventure.text.Component.text("设置第一个位置")
-                    .color(net.kyori.adventure.text.format.NamedTextColor.GREEN)));
-            lore.add(net.kyori.adventure.text.Component.text("▸ 右键点击 ")
-                .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW)
-                .append(net.kyori.adventure.text.Component.text("设置第二个位置")
-                    .color(net.kyori.adventure.text.format.NamedTextColor.GREEN)));
-            lore.add(net.kyori.adventure.text.Component.text(""));
-            lore.add(net.kyori.adventure.text.Component.text("选择完成后使用 /el create 创建领地")
-                .color(net.kyori.adventure.text.format.NamedTextColor.GRAY)
-                .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, true));
+            for (String line : loreStrings) {
+                lore.add(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(line)
+                    .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
+            }
             meta.lore(lore);
             
             // 添加附魔效果（发光）
@@ -1421,6 +1392,6 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             logger.warning("Failed to get owner name for ID " + ownerId + ": " + e.getMessage());
         }
-        return "未知";
+        return i18nManager.getMessage("general.unknown");
     }
 }
