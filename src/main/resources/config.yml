@@ -25,24 +25,49 @@ visualization:
   # 领地边界显示的最大持续时间 (秒)
   max-duration: 60
 
-# 保护设置
-protection:
-  # 服务器级保护规则开关
-  block-protection:
+# 规则设置
+# enable: 是否在服务器启用此规则检查（如果为false，则该规则失效，允许所有操作）
+# default: 新领地的默认状态（true=允许，false=禁止）
+rule:
+  # 建造规则
+  build:
     enable: true
-    # 默认启用状态
+    default: false
+  # 破坏规则
+  break:
+    enable: true
+    default: false
+  # 交互规则 (箱子、门等)
+  interact:
+    enable: true
+    default: false
+  # 使用规则 (物品使用)
+  use:
+    enable: true
+    default: false
+  # PvP规则 (玩家对战)
+  pvp:
+    enable: true
+    default: false
+  # PvE规则 (玩家受怪物伤害)
+  pve:
+    enable: true
     default: true
-  container-protection:
+  # 爆炸规则
+  explosions:
     enable: true
-    # 默认启用状态
+    default: false
+  # 火焰蔓延规则
+  fire_spread:
+    enable: true
+    default: false
+  # 进入规则
+  enter:
+    enable: true
     default: true
-  explosion-protection:
+  # 怪物生成规则
+  mob_spawning:
     enable: true
-    # 默认启用状态
-    default: true
-  player-protection:
-    enable: true
-    # 默认启用状态
     default: true
 
 # 子领地设置

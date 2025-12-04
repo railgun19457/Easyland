@@ -36,7 +36,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     
     // 子命令列表
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "protection", "reload", "rename", "subcreate", "migrate", "select", "setspawn", "tp"
+        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "reload", "rename", "subcreate", "migrate", "select", "setspawn", "tp", "rule"
     );
     
     // 管理员子命令列表
@@ -45,9 +45,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     );
     
     // 保护规则列表
-    private static final List<String> PROTECTION_RULES = Arrays.asList(
-        "block", "explosion", "container", "player"
-    );
+    private static final List<String> PROTECTION_RULES = java.util.Arrays.stream(io.github.railgun19457.easyland.model.LandFlag.values())
+        .map(io.github.railgun19457.easyland.model.LandFlag::getName)
+        .collect(java.util.stream.Collectors.toList());
     
     // 命令到权限的映射表（不包含 help 命令，因为它不需要权限）
     private static final Map<String, String> COMMAND_PERMISSIONS = Map.ofEntries(
@@ -60,14 +60,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("create", "easyland.create"),
         Map.entry("abandon", "easyland.abandon"),
         Map.entry("show", "easyland.show"),
-        Map.entry("protection", "easyland.protection"),
         Map.entry("reload", "easyland.admin"),
         Map.entry("rename", "easyland.rename"),
         Map.entry("subcreate", "easyland.subcreate"),
         Map.entry("select", "easyland.select"),
         Map.entry("migrate", "easyland.admin.migrate"),
         Map.entry("setspawn", "easyland.setspawn"),
-        Map.entry("tp", "easyland.tp")
+        Map.entry("tp", "easyland.tp"),
+        Map.entry("rule", "easyland.rule")
     );
     
     // 帮助消息映射表：权限 -> 帮助消息键列表
@@ -82,11 +82,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("easyland.show", List.of("help.show")),
         Map.entry("easyland.trust", List.of("help.trust", "help.untrust")),
         Map.entry("easyland.subcreate", List.of("help.subcreate")),
-        Map.entry("easyland.protection", List.of("help.protection")),
         Map.entry("easyland.admin", List.of("help.reload")),
         Map.entry("easyland.admin.migrate", List.of("help.migrate")),
         Map.entry("easyland.setspawn", List.of("help.setspawn")),
-        Map.entry("easyland.tp", List.of("help.tp"))
+        Map.entry("easyland.tp", List.of("help.tp")),
+        Map.entry("easyland.rule", List.of("help.rule"))
     );
     
     /**
@@ -223,8 +223,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 handleShow(player, args, commandName);
                 break;
                 
-            case "protection":
-                handleProtection(player, args, commandName);
+            case "rule":
+                handleRule(player, args, commandName);
                 break;
                 
             case "reload":
@@ -259,6 +259,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         
         return true;
     }
+    
+
     
     /**
      * 处理claim命令。
@@ -511,17 +513,12 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         
         if (args.length >= 2) {
             // 查看指定领地信息
-            try {
-                int landId = Integer.parseInt(args[1]);
-                Optional<Land> landOpt = landManager.getLandById(landId);
-                if (landOpt.isPresent()) {
-                    land = landOpt.get();
-                } else {
-                    player.sendMessage(i18nManager.getMessage("info.no-land-here"));
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " info [landId]"));
+            String landIdOrName = args[1];
+            Optional<Land> landOpt = landManager.getLandByIdOrName(landIdOrName);
+            if (landOpt.isPresent()) {
+                land = landOpt.get();
+            } else {
+                player.sendMessage(i18nManager.getMessage("info.no-land-here"));
                 return;
             }
         } else {
@@ -536,6 +533,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         // 显示领地信息
         player.sendMessage(i18nManager.getMessage("info.header"));
         player.sendMessage(i18nManager.getMessage("info.id", String.valueOf(land.getId())));
+        if (land.getName() != null) {
+            player.sendMessage(i18nManager.getMessage("info.name", land.getName()));
+        }
         
         // 获取拥有者信息
         if (land.getOwnerId() == 0) {
@@ -567,7 +567,42 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
         
         player.sendMessage(i18nManager.getMessage("info.world", land.getWorld()));
-        player.sendMessage(i18nManager.getMessage("info.chunks", String.valueOf(calculateArea(land))));
+        
+        String coords;
+        if (land.getTeleportX() != null) {
+            coords = String.format("%.1f, %.1f, %.1f", 
+                land.getTeleportX(), land.getTeleportY(), land.getTeleportZ());
+        } else {
+            int centerX = (land.getX1() + land.getX2()) / 2;
+            int centerZ = (land.getZ1() + land.getZ2()) / 2;
+            coords = String.format("%d, ~, %d", centerX, centerZ);
+        }
+        player.sendMessage(i18nManager.getMessage("info.coords", coords));
+        
+        player.sendMessage(i18nManager.getMessage("info.area", String.valueOf(calculateArea(land))));
+        
+        // 显示保护规则
+        if (land.getFlags() != null && !land.getFlags().isEmpty()) {
+            StringBuilder flagsBuilder = new StringBuilder();
+            String separator = i18nManager.getMessage("info.flag-separator");
+            boolean first = true;
+            
+            for (io.github.railgun19457.easyland.model.LandFlag flag : land.getFlags()) {
+                if (!first) {
+                    flagsBuilder.append(separator);
+                }
+                String flagDesc = flag.getDescription();
+                String msg = i18nManager.getMessage("info.flag-enabled", flagDesc);
+                if (msg == null) {
+                    msg = "§a" + flagDesc;
+                }
+                flagsBuilder.append(msg);
+                first = false;
+            }
+            player.sendMessage(i18nManager.getMessage("info.flags", flagsBuilder.toString()));
+        } else {
+            player.sendMessage(i18nManager.getMessage("info.flags", "None"));
+        }
     }
     
     /**
@@ -708,36 +743,154 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
-     * 处理protection命令。
+     * 处理rule命令。
      */
-    private void handleProtection(Player player, String[] args, String commandName) {
-        if (!checkPermission(player, "easyland.protection", "permission.no-protection")) {
-            return;
-        }
+    private void handleRule(Player player, String[] args, String commandName) {
+        // 移除统一的权限检查，改为在具体操作中检查（允许领地主人管理自己的领地）
+        // if (!checkPermission(player, "easyland.rule", "permission.no-rule")) {
+        //     return;
+        // }
         
-        if (args.length < 3) {
-            // 显示当前保护状态
-            player.sendMessage(i18nManager.getMessage("rule.status-header"));
-            for (String rule : PROTECTION_RULES) {
-                // 这里需要获取实际的保护状态
-                player.sendMessage(i18nManager.getMessage("rule.status-enabled", rule));
+        String landId = null;
+        String rule = null;
+        String valueStr = null;
+        
+        if (args.length == 2) {
+            // rule <land> (显示该领地所有规则) 或 rule <rule> (显示当前领地该规则)
+            String arg1 = args[1];
+            Optional<Land> landOpt = landManager.getLandByIdOrName(arg1);
+            
+            if (landOpt.isPresent()) {
+                Land land = landOpt.get();
+                if (!checkRulePermission(player, land)) return;
+                showLandRules(player, land);
+                return;
+            } else {
+                if (PROTECTION_RULES.contains(arg1.toLowerCase())) {
+                    Land currentLand = landManager.getLandAt(player.getLocation());
+                    if (currentLand == null) {
+                        player.sendMessage(i18nManager.getMessage("general.not-in-land"));
+                        return;
+                    }
+                    if (!checkRulePermission(player, currentLand)) return;
+                    showRuleStatus(player, currentLand, arg1);
+                    return;
+                } else {
+                    player.sendMessage(i18nManager.getMessage("show.no-land-found"));
+                    return;
+                }
             }
-            player.sendMessage(i18nManager.getMessage("rule.usage-tip"));
+        } else if (args.length == 3) {
+            // rule <land> <rule> (显示状态) 或 rule <rule> <value> (设置当前领地)
+            String arg1 = args[1];
+            String arg2 = args[2];
+            
+            Optional<Land> landOpt = landManager.getLandByIdOrName(arg1);
+            if (landOpt.isPresent()) {
+                if (PROTECTION_RULES.contains(arg2.toLowerCase())) {
+                    Land land = landOpt.get();
+                    if (!checkRulePermission(player, land)) return;
+                    showRuleStatus(player, land, arg2);
+                    return;
+                } else {
+                    player.sendMessage(i18nManager.getMessage("rule.invalid-rule", String.join(", ", PROTECTION_RULES)));
+                    return;
+                }
+            } else {
+                Land currentLand = landManager.getLandAt(player.getLocation());
+                if (currentLand == null) {
+                    player.sendMessage(i18nManager.getMessage("general.not-in-land"));
+                    return;
+                }
+                // 检查权限
+                if (!checkRulePermission(player, currentLand)) return;
+                
+                landId = String.valueOf(currentLand.getId());
+                rule = arg1;
+                valueStr = arg2;
+            }
+        } else if (args.length == 4) {
+            // rule <land> <rule> <value>
+            Optional<Land> landOpt = landManager.getLandByIdOrName(args[1]);
+            if (!landOpt.isPresent()) {
+                player.sendMessage(i18nManager.getMessage("show.no-land-found"));
+                return;
+            }
+            Land land = landOpt.get();
+            if (!checkRulePermission(player, land)) return;
+            
+            landId = args[1];
+            rule = args[2];
+            valueStr = args[3];
+        } else {
+            player.sendMessage(i18nManager.getMessage("general.invalid-args", "/" + commandName + " rule [land] [rule] [true|false]"));
             return;
         }
         
-        String rule = args[1].toLowerCase();
-        String action = args[2].toLowerCase();
-        
-        if (!PROTECTION_RULES.contains(rule)) {
+        if (!PROTECTION_RULES.contains(rule.toLowerCase())) {
             player.sendMessage(i18nManager.getMessage("rule.invalid-rule", String.join(", ", PROTECTION_RULES)));
             return;
         }
         
-        boolean enable = action.equals("on") || action.equals("true") || action.equals("enable");
+        boolean value;
+        if (valueStr.equalsIgnoreCase("true") || valueStr.equalsIgnoreCase("on") || valueStr.equalsIgnoreCase("allow")) {
+            value = true;
+        } else if (valueStr.equalsIgnoreCase("false") || valueStr.equalsIgnoreCase("off") || valueStr.equalsIgnoreCase("deny")) {
+            value = false;
+        } else {
+            player.sendMessage(i18nManager.getMessage("general.invalid-boolean"));
+            return;
+        }
         
-        // 这里需要实现设置保护规则的逻辑
-        player.sendMessage(i18nManager.getMessage("rule.set-success", rule, enable ? "启用" : "禁用"));
+        if (landManager.setLandFlag(player, landId, rule, value)) {
+            player.sendMessage(i18nManager.getMessage("rule.success", rule, String.valueOf(value)));
+        } else {
+            player.sendMessage(i18nManager.getMessage("rule.failed"));
+        }
+    }
+
+    /**
+     * 检查玩家是否有权限使用rule命令。
+     * 允许拥有 easyland.rule 权限的玩家，或者领地主人。
+     */
+    private boolean checkRulePermission(Player player, Land land) {
+        if (player.hasPermission("easyland.rule")) {
+            return true;
+        }
+        if (land != null && permissionManager.isLandOwner(player, land)) {
+            return true;
+        }
+        player.sendMessage(i18nManager.getMessage("permission.no-rule"));
+        return false;
+    }
+
+    private void showLandRules(Player player, Land land) {
+        player.sendMessage(i18nManager.getMessage("info.header"));
+        player.sendMessage(i18nManager.getMessage("info.name", land.getName() != null ? land.getName() : String.valueOf(land.getId())));
+        
+        for (String rule : PROTECTION_RULES) {
+            showRuleStatus(player, land, rule);
+        }
+    }
+
+    private void showRuleStatus(Player player, Land land, String rule) {
+        io.github.railgun19457.easyland.model.LandFlag flag = null;
+        for (io.github.railgun19457.easyland.model.LandFlag f : io.github.railgun19457.easyland.model.LandFlag.values()) {
+            if (f.getName().equalsIgnoreCase(rule)) {
+                flag = f;
+                break;
+            }
+        }
+
+        if (flag == null) {
+            return;
+        }
+
+        java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> flags = land.getFlagMap();
+        boolean enabled = flags.getOrDefault(flag, false);
+
+        String status = enabled ? "§aTrue" : "§cFalse";
+        player.sendMessage("§e" + rule + ": " + status);
     }
     
     /**
@@ -1084,23 +1237,25 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     }
                     break;
                     
-                case "protection":
+                case "rule":
                     if (args.length == 2) {
-                        // 补全保护规则
-                        String partial = args[1].toLowerCase();
-                        for (String rule : PROTECTION_RULES) {
-                            if (rule.startsWith(partial)) {
-                                completions.add(rule);
-                            }
+                        // 补全规则或领地
+                        completions.addAll(PROTECTION_RULES);
+                        if (player != null) {
+                            completions.addAll(getPlayerLandCompletions(player));
                         }
                     } else if (args.length == 3) {
-                        // 补全开关选项
-                        String partial = args[2].toLowerCase();
-                        for (String option : Arrays.asList("on", "off")) {
-                            if (option.startsWith(partial)) {
-                                completions.add(option);
-                            }
+                        String arg1 = args[1].toLowerCase();
+                        if (PROTECTION_RULES.contains(arg1)) {
+                            // args[1] 是规则，args[2] 是值
+                            completions.addAll(Arrays.asList("true", "false"));
+                        } else {
+                            // args[1] 是领地，args[2] 是规则
+                            completions.addAll(PROTECTION_RULES);
                         }
+                    } else if (args.length == 4) {
+                        // args[1] 领地，args[2] 规则，args[3] 值
+                        completions.addAll(Arrays.asList("true", "false"));
                     }
                     break;
             }
@@ -1124,6 +1279,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         // rename需要特殊处理：rename或admin权限都可以
         if (command.equals("rename")) {
             return sender.hasPermission("easyland.rename") || sender.hasPermission("easyland.admin");
+        }
+
+        // rule命令特殊处理：玩家可以使用（针对自己的领地），或者有easyland.rule权限
+        if (command.equals("rule")) {
+            return (sender instanceof Player) || sender.hasPermission("easyland.rule");
         }
         
         return sender.hasPermission(permission);

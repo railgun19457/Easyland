@@ -433,16 +433,19 @@ public class MigrationManager {
                         logger.info("领地 " + landName + " 有 " + protection.size() + " 个保护规则");
                         for (Map.Entry<String, Object> protectionEntry : protection.entrySet()) {
                             String flagName = protectionEntry.getKey();
-                            boolean isEnabled = (Boolean) protectionEntry.getValue();
+                            boolean isProtected = (Boolean) protectionEntry.getValue();
 
-                            if (isEnabled) {
-                                // 将旧的保护规则名称映射到新的
-                                String newFlagName = mapProtectionFlag(flagName);
-                                if (newFlagName != null) {
-                                    insertLandFlag(conn, landId, newFlagName);
-                                    logger.info("为领地 " + landName + " 启用保护规则: " + newFlagName);
-                                } else {
-                                    logger.warning("领地 " + landName + " 有未知的保护规则: " + flagName);
+                            // 将旧的保护规则名称映射到新的
+                            List<String> newFlags = mapProtectionFlag(flagName);
+                            if (!newFlags.isEmpty()) {
+                                // 旧系统: true = 保护开启 = 禁止操作 (allow = false)
+                                // 新系统: true = 允许操作
+                                // 所以: new_value = !old_value
+                                boolean allow = !isProtected;
+                                
+                                for (String newFlag : newFlags) {
+                                    insertLandFlag(conn, landId, newFlag, allow);
+                                    logger.info("为领地 " + landName + " 设置规则: " + newFlag + " = " + allow);
                                 }
                             }
                         }
@@ -605,14 +608,15 @@ public class MigrationManager {
      * @param conn 数据库连接
      * @param landId 领地ID
      * @param flagName 标记名称
+     * @param value 标记值
      */
-    private void insertLandFlag(Connection conn, int landId, String flagName) throws SQLException {
+    private void insertLandFlag(Connection conn, int landId, String flagName, boolean value) throws SQLException {
         String sql = "INSERT OR IGNORE INTO land_flags (land_id, flag_name, flag_value) VALUES (?, ?, ?)";
 
         try (java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, landId);
             stmt.setString(2, flagName);
-            stmt.setString(3, "true"); // 使用字符串存储标记值
+            stmt.setString(3, String.valueOf(value)); // 使用字符串存储标记值
             stmt.executeUpdate();
         }
     }
@@ -621,21 +625,28 @@ public class MigrationManager {
      * 将旧的保护规则名称映射到新的。
      *
      * @param oldFlagName 旧的保护规则名称
-     * @return 新的保护规则名称，如果不支持则返回null
+     * @return 新的保护规则名称列表
      */
-    private String mapProtectionFlag(String oldFlagName) {
+    private List<String> mapProtectionFlag(String oldFlagName) {
+        List<String> flags = new ArrayList<>();
         switch (oldFlagName) {
             case "block-protection":
-                return "block";
+                flags.add("build");
+                flags.add("break");
+                break;
             case "container-protection":
-                return "container";
+                flags.add("interact");
+                flags.add("use");
+                break;
             case "explosion-protection":
-                return "explosion";
+                flags.add("explosions");
+                break;
             case "player-protection":
-                return "player";
+                flags.add("pvp");
+                break;
             default:
                 logger.warning("未知的保护规则: " + oldFlagName);
-                return null;
         }
+        return flags;
     }
 }

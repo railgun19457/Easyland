@@ -34,7 +34,7 @@ permissions:
       easyland.list: true
       easyland.show: true
       easyland.trust: true
-      easyland.protection: true
+      easyland.rule: true
       easyland.rename: true
       easyland.subcreate: true
       easyland.setspawn: true
@@ -83,7 +83,7 @@ permissions:
   easyland.trust:
     description: 信任/取消信任玩家
     default: true
-  easyland.protection:
+  easyland.rule:
     description: 管理领地保护规则
     default: true
   easyland.rename:

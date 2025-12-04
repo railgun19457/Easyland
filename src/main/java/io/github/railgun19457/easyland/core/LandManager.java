@@ -109,6 +109,17 @@ public class LandManager {
             // Get highest block Y at center
             int centerY = pos1.getWorld().getHighestBlockYAt(centerX, centerZ) + 1;
 
+            // Initialize default flags
+            java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> defaultFlags = new java.util.HashMap<>();
+            // Add default allowed flags
+            defaultFlags.put(io.github.railgun19457.easyland.model.LandFlag.ENTER, true);
+            defaultFlags.put(io.github.railgun19457.easyland.model.LandFlag.MOB_SPAWNING, true);
+            // Add other flags as false (explicitly)
+            for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+                defaultFlags.putIfAbsent(flag, false);
+            }
+            // Add other flags based on configuration if needed
+
             // Create the land using Builder pattern
             Land land = Land.builder()
                 .name(name)
@@ -120,6 +131,7 @@ public class LandManager {
                 .teleportZ(centerZ + 0.5)
                 .teleportYaw(0.0f)
                 .teleportPitch(0.0f)
+                .flags(defaultFlags)
                 .build();
             landDAO.createLand(land);
             
@@ -486,6 +498,63 @@ public class LandManager {
             return false;
         } catch (SQLException e) {
             logger.severe("Failed to trust player: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Sets a flag for a land.
+     *
+     * @param player       The player setting the flag
+     * @param landIdOrName The ID or name of the land
+     * @param flagName     The name of the flag
+     * @param value        The value to set (true/false)
+     * @return true if setting the flag was successful, false otherwise
+     */
+    public boolean setLandFlag(org.bukkit.entity.Player player, String landIdOrName, String flagName, boolean value) {
+        try {
+            // 使用辅助方法验证领地所有权或管理员权限
+            Land land = getAndVerifyLandOwnerOrAdmin(player, landIdOrName);
+            if (land == null) {
+                return false;
+            }
+            
+            // 查找对应的 LandFlag 枚举
+            io.github.railgun19457.easyland.model.LandFlag targetFlag = null;
+            for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+                if (flag.getName().equalsIgnoreCase(flagName)) {
+                    targetFlag = flag;
+                    break;
+                }
+            }
+            
+            if (targetFlag == null) {
+                logger.info("Invalid flag name: " + flagName);
+                return false;
+            }
+            
+            // 更新标志集合
+            java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> flags = land.getFlagMap();
+            if (flags == null) {
+                flags = new java.util.HashMap<>();
+            }
+            
+            flags.put(targetFlag, value);
+            
+            land.setFlagMap(flags);
+            landDAO.updateLand(land);
+            
+            // 使受影响的领地缓存失效
+            landCache.invalidateLandCache(land.getId());
+            
+            logger.info("Player " + player.getName() + " set flag " + flagName + " to " + value + " for land " + land.getId());
+            return true;
+            
+        } catch (LandNotFoundException e) {
+            logger.info("Land not found for setting flag: " + e.getLandId());
+            return false;
+        } catch (SQLException e) {
+            logger.severe("Failed to set flag: " + e.getMessage());
             return false;
         }
     }

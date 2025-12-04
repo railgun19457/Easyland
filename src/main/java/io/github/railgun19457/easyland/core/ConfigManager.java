@@ -26,16 +26,9 @@ public class ConfigManager {
     private int defaultVisualizationDuration;
     private int maxVisualizationDuration;
     
-    // 保护相关配置
-    private boolean blockProtectionEnabled;
-    private boolean containerProtectionEnabled;
-    private boolean explosionProtectionEnabled;
-    private boolean playerProtectionEnabled;
-    
-    private boolean defaultBlockProtection;
-    private boolean defaultContainerProtection;
-    private boolean defaultExplosionProtection;
-    private boolean defaultPlayerProtection;
+    // 保护相关配置 - 规则启用状态和默认值
+    private java.util.Map<String, Boolean> ruleEnabled = new java.util.HashMap<>();
+    private java.util.Map<String, Boolean> ruleDefault = new java.util.HashMap<>();
     
     // 子领地相关配置
     private int maxSubClaimsPerLand;
@@ -77,16 +70,19 @@ public class ConfigManager {
         this.maxVisualizationDuration = config.getInt("visualization.max-duration", 60);
         
         // 加载保护相关配置
-        this.blockProtectionEnabled = config.getBoolean("protection.block-protection.enable", true);
-        this.containerProtectionEnabled = config.getBoolean("protection.container-protection.enable", true);
-        this.explosionProtectionEnabled = config.getBoolean("protection.explosion-protection.enable", true);
-        this.playerProtectionEnabled = config.getBoolean("protection.player-protection.enable", true);
-        
-        // 加载默认保护状态
-        this.defaultBlockProtection = config.getBoolean("protection.block-protection.default", true);
-        this.defaultContainerProtection = config.getBoolean("protection.container-protection.default", true);
-        this.defaultExplosionProtection = config.getBoolean("protection.explosion-protection.default", true);
-        this.defaultPlayerProtection = config.getBoolean("protection.player-protection.default", true);
+        ruleEnabled.clear();
+        ruleDefault.clear();
+        for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+            String name = flag.getName();
+            ruleEnabled.put(name, config.getBoolean("rule." + name + ".enable", true));
+            
+            // 默认值处理
+            boolean def = false;
+            if (name.equals("enter") || name.equals("mob_spawning")) {
+                def = true;
+            }
+            ruleDefault.put(name, config.getBoolean("rule." + name + ".default", def));
+        }
         
         // 加载子领地相关配置
         this.maxSubClaimsPerLand = config.getInt("sub-claim.max-per-land", 5);
@@ -176,75 +172,23 @@ public class ConfigManager {
     // 保护相关配置的 getter 方法
     
     /**
-     * 获取方块保护的服务器级开关状态。
+     * 获取规则是否启用。
      *
-     * @return 是否启用方块保护
+     * @param ruleName 规则名称
+     * @return 是否启用
      */
-    public boolean isBlockProtectionEnabled() {
-        return blockProtectionEnabled;
+    public boolean isRuleEnabled(String ruleName) {
+        return ruleEnabled.getOrDefault(ruleName, true);
     }
-    
+
     /**
-     * 获取容器保护的服务器级开关状态。
+     * 获取规则的默认值。
      *
-     * @return 是否启用容器保护
+     * @param ruleName 规则名称
+     * @return 默认值
      */
-    public boolean isContainerProtectionEnabled() {
-        return containerProtectionEnabled;
-    }
-    
-    /**
-     * 获取爆炸保护的服务器级开关状态。
-     *
-     * @return 是否启用爆炸保护
-     */
-    public boolean isExplosionProtectionEnabled() {
-        return explosionProtectionEnabled;
-    }
-    
-    /**
-     * 获取玩家保护的服务器级开关状态。
-     *
-     * @return 是否启用玩家保护
-     */
-    public boolean isPlayerProtectionEnabled() {
-        return playerProtectionEnabled;
-    }
-    
-    /**
-     * 获取默认的方块保护状态。
-     *
-     * @return 是否默认启用方块保护
-     */
-    public boolean isDefaultBlockProtection() {
-        return defaultBlockProtection;
-    }
-    
-    /**
-     * 获取默认的容器保护状态。
-     *
-     * @return 是否默认启用容器保护
-     */
-    public boolean isDefaultContainerProtection() {
-        return defaultContainerProtection;
-    }
-    
-    /**
-     * 获取默认的爆炸保护状态。
-     *
-     * @return 是否默认启用爆炸保护
-     */
-    public boolean isDefaultExplosionProtection() {
-        return defaultExplosionProtection;
-    }
-    
-    /**
-     * 获取默认的玩家保护状态。
-     *
-     * @return 是否默认启用玩家保护
-     */
-    public boolean isDefaultPlayerProtection() {
-        return defaultPlayerProtection;
+    public boolean getDefaultRuleValue(String ruleName) {
+        return ruleDefault.getOrDefault(ruleName, false);
     }
     
     // 子领地相关配置的 getter 方法

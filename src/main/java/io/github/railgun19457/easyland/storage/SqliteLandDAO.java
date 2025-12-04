@@ -1,7 +1,7 @@
 package io.github.railgun19457.easyland.storage;
 
 import io.github.railgun19457.easyland.model.Land;
-//import io.github.railgun19457.easyland.model.LandFlag;
+import io.github.railgun19457.easyland.model.LandFlag;
 //import io.github.railgun19457.easyland.model.Player;
 
 import java.sql.*;
@@ -66,6 +66,11 @@ public class SqliteLandDAO implements LandDAO {
                     land.setId(generatedKeys.getInt(1));
                 }
             }
+            
+            // 保存初始标志
+            if (land.getFlagMap() != null && !land.getFlagMap().isEmpty()) {
+                insertLandFlags(conn, land.getId(), land.getFlagMap());
+            }
         }
     }
 
@@ -80,7 +85,10 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapResultSetToLand(rs));
+                    Land land = mapResultSetToLand(rs);
+                    land.setFlagMap(loadLandFlags(id));
+                    land.setTrustedPlayers(loadLandTrusts(id));
+                    return Optional.of(land);
                 }
             }
         }
@@ -242,6 +250,12 @@ public class SqliteLandDAO implements LandDAO {
             stmt.setInt(14, land.getId());
             
             stmt.executeUpdate();
+            
+            // 更新标志
+            if (land.getFlagMap() != null) {
+                deleteLandFlags(conn, land.getId());
+                insertLandFlags(conn, land.getId(), land.getFlagMap());
+            }
         }
     }
 
@@ -433,6 +447,93 @@ public class SqliteLandDAO implements LandDAO {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, landId);
             stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Loads flags for a land.
+     *
+     * @param landId The land ID
+     * @return A map of flags and their values
+     * @throws SQLException if a database access error occurs
+     */
+    private java.util.Map<LandFlag, Boolean> loadLandFlags(int landId) throws SQLException {
+        java.util.Map<LandFlag, Boolean> flags = new java.util.HashMap<>();
+        String sql = "SELECT flag_name, flag_value FROM land_flags WHERE land_id = ?";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, landId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String flagName = rs.getString("flag_name");
+                    String flagValue = rs.getString("flag_value");
+                    boolean value = "true".equalsIgnoreCase(flagValue);
+                    
+                    for (LandFlag flag : LandFlag.values()) {
+                        if (flag.getName().equalsIgnoreCase(flagName)) {
+                            flags.put(flag, value);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return flags;
+    }
+
+    /**
+     * Loads trusted players for a land.
+     *
+     * @param landId The land ID
+     * @return A list of trusted players
+     * @throws SQLException if a database access error occurs
+     */
+    private List<io.github.railgun19457.easyland.model.Player> loadLandTrusts(int landId) throws SQLException {
+        List<io.github.railgun19457.easyland.model.Player> trustedPlayers = new ArrayList<>();
+        String sql = "SELECT p.* FROM land_trusts lt JOIN players p ON lt.player_id = p.id WHERE lt.land_id = ?";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, landId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    io.github.railgun19457.easyland.model.Player player = new io.github.railgun19457.easyland.model.Player();
+                    player.setId(rs.getInt("id"));
+                    player.setUuid(java.util.UUID.fromString(rs.getString("uuid")));
+                    player.setName(rs.getString("name"));
+                    trustedPlayers.add(player);
+                }
+            }
+        }
+        
+        return trustedPlayers;
+    }
+
+    /**
+     * Inserts flags for a land.
+     *
+     * @param conn The database connection
+     * @param landId The land ID
+     * @param flags The flags to insert
+     * @throws SQLException if a database access error occurs
+     */
+    private void insertLandFlags(Connection conn, int landId, java.util.Map<LandFlag, Boolean> flags) throws SQLException {
+        String sql = "INSERT INTO land_flags (land_id, flag_name, flag_value) VALUES (?, ?, ?)";
+        
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (java.util.Map.Entry<LandFlag, Boolean> entry : flags.entrySet()) {
+                stmt.setInt(1, landId);
+                stmt.setString(2, entry.getKey().getName());
+                stmt.setString(3, String.valueOf(entry.getValue()));
+                stmt.addBatch();
+            }
+            stmt.executeBatch();
         }
     }
 }

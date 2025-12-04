@@ -1,7 +1,10 @@
 package io.github.railgun19457.easyland.model;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Represents a land claim in the Easyland system.
@@ -22,7 +25,7 @@ public class Land {
     private Float teleportYaw;
     private Float teleportPitch;
     private Player owner;
-    private Set<LandFlag> flags;
+    private Map<LandFlag, Boolean> flags = new HashMap<>();
     private List<Player> trustedPlayers;
 
     /**
@@ -120,7 +123,7 @@ public class Land {
         private Float teleportYaw;
         private Float teleportPitch;
         private Player owner;
-        private Set<LandFlag> flags;
+        private Map<LandFlag, Boolean> flags = new HashMap<>();
         private List<Player> trustedPlayers;
         
         public Builder() {}
@@ -212,6 +215,16 @@ public class Land {
         }
         
         public Builder flags(Set<LandFlag> flags) {
+            this.flags.clear();
+            if (flags != null) {
+                for (LandFlag flag : flags) {
+                    this.flags.put(flag, true);
+                }
+            }
+            return this;
+        }
+
+        public Builder flags(Map<LandFlag, Boolean> flags) {
             this.flags = flags;
             return this;
         }
@@ -358,10 +371,26 @@ public class Land {
     }
 
     public Set<LandFlag> getFlags() {
-        return flags;
+        return flags.entrySet().stream()
+            .filter(entry -> Boolean.TRUE.equals(entry.getValue()))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toSet());
     }
 
     public void setFlags(Set<LandFlag> flags) {
+        this.flags.clear();
+        if (flags != null) {
+            for (LandFlag flag : flags) {
+                this.flags.put(flag, true);
+            }
+        }
+    }
+
+    public Map<LandFlag, Boolean> getFlagMap() {
+        return flags;
+    }
+
+    public void setFlagMap(Map<LandFlag, Boolean> flags) {
         this.flags = flags;
     }
 
@@ -400,7 +429,7 @@ public class Land {
      * @return true if the flag is enabled, false otherwise
      */
     public boolean hasFlag(LandFlag flag) {
-        return flags != null && flags.contains(flag);
+        return flags != null && Boolean.TRUE.equals(flags.get(flag));
     }
 
     /**

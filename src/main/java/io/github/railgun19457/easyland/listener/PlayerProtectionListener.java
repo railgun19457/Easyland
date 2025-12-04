@@ -38,19 +38,34 @@ public class PlayerProtectionListener extends BaseProtectionListener {
         // 获取受害者和攻击者
         Entity victim = event.getEntity();
         Entity damager = event.getDamager();
-
-        // 检查是否是玩家之间的伤害
-        if (!(victim instanceof Player) || !(damager instanceof Player)) {
-            return;
+        
+        // 获取真实的攻击者（处理投射物）
+        Entity realDamager = damager;
+        if (damager instanceof org.bukkit.entity.Projectile) {
+            org.bukkit.projectiles.ProjectileSource shooter = ((org.bukkit.entity.Projectile) damager).getShooter();
+            if (shooter instanceof Entity) {
+                realDamager = (Entity) shooter;
+            }
         }
 
-        Player victimPlayer = (Player) victim;
-
-        // 检查该位置是否允许 PvP
-        if (!flagManager.isFlagEnabled(victimPlayer.getLocation(), LandFlag.PVP)) {
-            event.setCancelled(true);
-            // 可以在这里添加消息通知玩家
-            // ((Player) damager).sendMessage("此区域不允许 PvP！");
+        // 1. 处理 PvP (玩家攻击玩家)
+        if (victim instanceof Player && realDamager instanceof Player) {
+            Player victimPlayer = (Player) victim;
+            // 检查该位置是否允许 PvP
+            if (!flagManager.isFlagEnabled(victimPlayer.getLocation(), LandFlag.PVP)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        
+        // 2. 处理 PvE (非玩家攻击玩家)
+        if (victim instanceof Player && !(realDamager instanceof Player)) {
+            Player victimPlayer = (Player) victim;
+            // 检查该位置是否允许 PvE
+            if (!flagManager.isFlagEnabled(victimPlayer.getLocation(), LandFlag.PVE)) {
+                event.setCancelled(true);
+            }
+            return;
         }
     }
 }

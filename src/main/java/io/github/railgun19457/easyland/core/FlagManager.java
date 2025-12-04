@@ -6,9 +6,7 @@ import io.github.railgun19457.easyland.storage.LandDAO;
 import org.bukkit.Location;
 
 import java.sql.SQLException;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -22,33 +20,6 @@ public class FlagManager {
     private final ConfigManager configManager;
     private final LandCache landCache;
     private PermissionManager permissionManager;
-
-    /**
-     * 保护类型枚举。
-     * 定义不同类型的保护规则。
-     */
-    public enum ProtectionType {
-        BLOCK,      // 方块保护（放置/破坏）
-        CONTAINER,  // 容器保护（交互/使用）
-        PLAYER,     // 玩家保护（PvP）
-        EXPLOSION,  // 爆炸保护
-        OTHER       // 其他类型
-    }
-    
-    /**
-     * 标志到保护类型的静态映射。
-     */
-    private static final Map<LandFlag, ProtectionType> FLAG_PROTECTION_TYPES = Map.of(
-        LandFlag.BUILD, ProtectionType.BLOCK,
-        LandFlag.BREAK, ProtectionType.BLOCK,
-        LandFlag.INTERACT, ProtectionType.CONTAINER,
-        LandFlag.USE, ProtectionType.CONTAINER,
-        LandFlag.PVP, ProtectionType.PLAYER,
-        LandFlag.EXPLOSIONS, ProtectionType.EXPLOSION,
-        LandFlag.FIRE_SPREAD, ProtectionType.EXPLOSION,
-        LandFlag.ENTER, ProtectionType.OTHER,
-        LandFlag.MOB_SPAWNING, ProtectionType.OTHER
-    );
 
     /**
      * FlagManager 构造函数（带缓存支持）。
@@ -77,13 +48,23 @@ public class FlagManager {
     }
     
     /**
-     * 获取标志的保护类型。
+     * 获取标志的默认值。
      *
-     * @param flag 要检查的标志
-     * @return 保护类型
+     * @param flag 要获取默认值的标志
+     * @return 标志的默认值
      */
-    public static ProtectionType getProtectionType(LandFlag flag) {
-        return FLAG_PROTECTION_TYPES.getOrDefault(flag, ProtectionType.OTHER);
+    private boolean getDefaultFlagValue(LandFlag flag) {
+        return configManager.getDefaultRuleValue(flag.getName());
+    }
+
+    /**
+     * 检查特定保护规则是否在服务器级别启用。
+     *
+     * @param flag 要检查的保护标志
+     * @return 如果保护规则启用返回 true，否则返回 false
+     */
+    private boolean isProtectionRuleEnabled(LandFlag flag) {
+        return configManager.isRuleEnabled(flag.getName());
     }
 
     /**
@@ -124,7 +105,7 @@ public class FlagManager {
             }
 
             Land fullLand = fullLandOpt.get();
-            Set<LandFlag> flags = fullLand.getFlags();
+            java.util.Map<LandFlag, Boolean> flags = fullLand.getFlagMap();
 
             // 如果没有设置标志，则使用默认值
             if (flags == null || flags.isEmpty()) {
@@ -132,41 +113,12 @@ public class FlagManager {
             }
 
             // 检查标志是否被启用
-            return flags.contains(flag);
+            return Boolean.TRUE.equals(flags.get(flag));
 
         } catch (SQLException e) {
             logger.severe("检查标志时出错: " + e.getMessage());
             // 出错时默认允许操作，以避免意外阻止玩家
             return true;
-        }
-    }
-
-    /**
-     * 获取标志的默认值。
-     * 对于大多数保护标志，默认值是 false（不允许）。
-     * 对于一些允许性标志，默认值是 true（允许）。
-     *
-     * @param flag 要获取默认值的标志
-     * @return 标志的默认值
-     */
-    private boolean getDefaultFlagValue(LandFlag flag) {
-        // 使用保护类型映射来确定默认值
-        ProtectionType type = getProtectionType(flag);
-        
-        switch (type) {
-            case BLOCK:
-                return !configManager.isDefaultBlockProtection();
-            case CONTAINER:
-                return !configManager.isDefaultContainerProtection();
-            case PLAYER:
-                return !configManager.isDefaultPlayerProtection();
-            case EXPLOSION:
-                return !configManager.isDefaultExplosionProtection();
-            case OTHER:
-                // 这些是允许标志，默认启用（如ENTER, MOB_SPAWNING）
-                return true;
-            default:
-                return false;
         }
     }
 
@@ -221,30 +173,5 @@ public class FlagManager {
         }
     }
     
-    /**
-     * 检查特定保护规则是否在服务器级别启用。
-     *
-     * @param flag 要检查的保护标志
-     * @return 如果保护规则启用返回 true，否则返回 false
-     */
-    private boolean isProtectionRuleEnabled(LandFlag flag) {
-        // 使用保护类型映射来确定服务器级别的保护规则
-        ProtectionType type = getProtectionType(flag);
-        
-        switch (type) {
-            case BLOCK:
-                return configManager.isBlockProtectionEnabled();
-            case CONTAINER:
-                return configManager.isContainerProtectionEnabled();
-            case PLAYER:
-                return configManager.isPlayerProtectionEnabled();
-            case EXPLOSION:
-                return configManager.isExplosionProtectionEnabled();
-            case OTHER:
-                // 这些标志不受服务器级开关控制，总是启用
-                return true;
-            default:
-                return true;
-        }
-    }
+
 }

@@ -41,6 +41,11 @@ public enum LandFlag {
     PVP("pvp", "允许玩家对战"),
 
     /**
+     * Allows PvE (Player vs Environment) combat on the land.
+     */
+    PVE("pve", "允许PVE"),
+
+    /**
      * Allows explosions on the land.
      */
     EXPLOSIONS("explosions", "允许爆炸"),

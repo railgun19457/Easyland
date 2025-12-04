@@ -123,6 +123,9 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         playerDAO = new SqlitePlayerDAO(databaseManager);
         landTrustDAO = new SqliteLandTrustDAO(databaseManager);
         
+        // 修复旧数据
+        databaseManager.fixMissingData();
+        
         logger.info("数据库初始化完成。");
     }
 

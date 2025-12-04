@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
@@ -336,6 +338,111 @@ public class DatabaseManager {
     public boolean executeQuery(String sql) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             return statement.executeQuery(sql).next();
+        }
+    }
+
+    /**
+     * Fixes missing flags and teleport locations for existing lands.
+     * This method should be called after database initialization.
+     *
+     * @throws SQLException if a database access error occurs
+     */
+    public void fixMissingData() throws SQLException {
+        fixMissingFlags();
+        fixMissingTeleportLocations();
+    }
+
+    /**
+     * Fixes missing flags for lands that have no flags set.
+     * Inserts default flags (ENTER, MOB_SPAWNING) for these lands.
+     *
+     * @throws SQLException if a database access error occurs
+     */
+    private void fixMissingFlags() throws SQLException {
+        // 查找没有标志的领地
+        String selectSql = "SELECT id FROM lands WHERE id NOT IN (SELECT DISTINCT land_id FROM land_flags)";
+        String insertSql = "INSERT INTO land_flags (land_id, flag_name, flag_value) VALUES (?, ?, ?)";
+        
+        try (Connection conn = getConnection();
+             Statement selectStmt = conn.createStatement();
+             ResultSet rs = selectStmt.executeQuery(selectSql);
+             PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+            
+            int count = 0;
+            while (rs.next()) {
+                int landId = rs.getInt("id");
+                
+                // 插入 enter 标志
+                insertStmt.setInt(1, landId);
+                insertStmt.setString(2, "enter");
+                insertStmt.setString(3, "true");
+                insertStmt.addBatch();
+                
+                // 插入 mob_spawning 标志
+                insertStmt.setInt(1, landId);
+                insertStmt.setString(2, "mob_spawning");
+                insertStmt.setString(3, "true");
+                insertStmt.addBatch();
+                
+                count++;
+            }
+            
+            if (count > 0) {
+                insertStmt.executeBatch();
+                logger.info("已修复 " + count + " 个缺失标志的领地。");
+            }
+        }
+    }
+
+    /**
+     * Fixes missing teleport locations for lands.
+     * Calculates the center of the land and sets it as the teleport location.
+     *
+     * @throws SQLException if a database access error occurs
+     */
+    private void fixMissingTeleportLocations() throws SQLException {
+        // 查找没有传送点的领地
+        String selectSql = "SELECT id, x1, z1, x2, z2, world FROM lands WHERE teleport_x IS NULL";
+        String updateSql = "UPDATE lands SET teleport_x = ?, teleport_y = ?, teleport_z = ?, teleport_yaw = ?, teleport_pitch = ? WHERE id = ?";
+        
+        try (Connection conn = getConnection();
+             Statement selectStmt = conn.createStatement();
+             ResultSet rs = selectStmt.executeQuery(selectSql);
+             PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+            
+            int count = 0;
+            while (rs.next()) {
+                int landId = rs.getInt("id");
+                int x1 = rs.getInt("x1");
+                int z1 = rs.getInt("z1");
+                int x2 = rs.getInt("x2");
+                int z2 = rs.getInt("z2");
+                // String worldName = rs.getString("world");
+                
+                // 计算中心点
+                double centerX = (x1 + x2) / 2.0 + 0.5;
+                double centerZ = (z1 + z2) / 2.0 + 0.5;
+                
+                // 由于无法在非主线程安全获取世界高度，这里设置一个默认高度
+                // 实际传送时如果位置不安全，通常会有安全传送机制
+                // 或者设置为 64 (海平面) + 1
+                double centerY = 65.0; 
+                
+                updateStmt.setDouble(1, centerX);
+                updateStmt.setDouble(2, centerY);
+                updateStmt.setDouble(3, centerZ);
+                updateStmt.setFloat(4, 0.0f);
+                updateStmt.setFloat(5, 0.0f);
+                updateStmt.setInt(6, landId);
+                
+                updateStmt.addBatch();
+                count++;
+            }
+            
+            if (count > 0) {
+                updateStmt.executeBatch();
+                logger.info("已修复 " + count + " 个缺失传送点的领地。");
+            }
         }
     }
 }
