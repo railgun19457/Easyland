@@ -96,19 +96,63 @@ public class LandVisualizer {
         int x2 = land.getX2();
         int z2 = land.getZ2();
 
-        // Find a safe Y level to display particles (player's Y level or 64 if underground)
-        int y = Math.max(player.getLocation().getBlockY(), 64);
+        // Get player's Y coordinate as base
+        double playerY = player.getLocation().getY();
+        
+        // Define colors
+        // Corners: Gold/Orange (Prominent)
+        Particle.DustOptions cornerColor = new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1.5f);
+        // Edges: Aqua (Visible and friendly)
+        Particle.DustOptions edgeColor = new Particle.DustOptions(Color.fromRGB(0, 255, 255), 1.0f);
 
-        // Draw the perimeter
+        // 1. Draw Corners (Vertical pillars relative to player height)
+        // Show from slightly below to slightly above player to ensure visibility
+        int minY = (int) Math.max(world.getMinHeight(), playerY - 10);
+        int maxY = (int) Math.min(world.getMaxHeight(), playerY + 10);
+
+        drawCorner(player, world, x1, z1, minY, maxY, cornerColor);
+        drawCorner(player, world, x1, z2, minY, maxY, cornerColor);
+        drawCorner(player, world, x2, z1, minY, maxY, cornerColor);
+        drawCorner(player, world, x2, z2, minY, maxY, cornerColor);
+
+        // 2. Draw Edges (Two layers: Feet and Head level)
+        double yBottom = playerY + 0.2;
+        double yTop = playerY + 2.2;
+
+        // Draw along X axis
         for (int x = x1; x <= x2; x++) {
-            spawnParticle(player, world, x, y, z1);
-            spawnParticle(player, world, x, y, z2);
+            // Skip corners to avoid overlapping (optional, but cleaner)
+            if (x == x1 || x == x2) continue;
+            
+            spawnParticle(player, world, x + 0.5, yBottom, z1 + 0.5, edgeColor);
+            spawnParticle(player, world, x + 0.5, yTop, z1 + 0.5, edgeColor);
+            
+            spawnParticle(player, world, x + 0.5, yBottom, z2 + 0.5, edgeColor);
+            spawnParticle(player, world, x + 0.5, yTop, z2 + 0.5, edgeColor);
         }
 
+        // Draw along Z axis
         for (int z = z1; z <= z2; z++) {
-            spawnParticle(player, world, x1, y, z);
-            spawnParticle(player, world, x2, y, z);
+            // Skip corners
+            if (z == z1 || z == z2) continue;
+
+            spawnParticle(player, world, x1 + 0.5, yBottom, z + 0.5, edgeColor);
+            spawnParticle(player, world, x1 + 0.5, yTop, z + 0.5, edgeColor);
+            
+            spawnParticle(player, world, x2 + 0.5, yBottom, z + 0.5, edgeColor);
+            spawnParticle(player, world, x2 + 0.5, yTop, z + 0.5, edgeColor);
         }
+    }
+
+    /**
+     * Draws a vertical pillar at a corner.
+     */
+    private void drawCorner(Player player, World world, int x, int z, int minY, int maxY, Particle.DustOptions options) {
+        for (int y = minY; y <= maxY; y += 1) {
+            spawnParticle(player, world, x + 0.5, y + 0.5, z + 0.5, options);
+        }
+        // Add a highlight at the top of the pillar (relative to player)
+        // spawnParticle(player, world, x + 0.5, maxY + 0.5, z + 0.5, options); 
     }
 
     /**
@@ -119,9 +163,10 @@ public class LandVisualizer {
      * @param x      The X coordinate
      * @param y      The Y coordinate
      * @param z      The Z coordinate
+     * @param options The particle options (color, size)
      */
-    private void spawnParticle(Player player, World world, int x, int y, int z) {
-        Location location = new Location(world, x + 0.5, y + 0.5, z + 0.5);
-        player.spawnParticle(Particle.DUST, location, 1, new Particle.DustOptions(Color.RED, 1.0f));
+    private void spawnParticle(Player player, World world, double x, double y, double z, Particle.DustOptions options) {
+        Location location = new Location(world, x, y, z);
+        player.spawnParticle(Particle.DUST, location, 1, options);
     }
 }

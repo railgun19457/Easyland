@@ -1232,7 +1232,10 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                         }
                     } else if (args.length == 3) {
                         // args[1] 是领地，args[2] 是规则
-                        completions.addAll(PROTECTION_RULES);
+                        // 只有当输入了领地名称（args[1]不为空）时才补全规则
+                        if (!args[1].isEmpty()) {
+                            completions.addAll(PROTECTION_RULES);
+                        }
                     } else if (args.length == 4) {
                         // args[1] 领地，args[2] 规则，args[3] 值
                         completions.addAll(Arrays.asList("true", "false"));
