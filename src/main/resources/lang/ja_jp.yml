@@ -7,6 +7,7 @@ general:
   no-permission: "§cこのコマンドを実行する権限がありません。"
   invalid-args: "§c無効な引数です。使用法: %s"
   reload-success: "§a設定が正常に再読み込みされました。"
+  unknown: "不明"
 
 # 権限メッセージ
 permission:
@@ -17,12 +18,26 @@ permission:
   no-create: "§c土地を作成する権限がありません。（管理者権限が必要）"
   no-abandon: "§c土地を放棄する権限がありません。"
   no-show: "§c土地の境界を表示する権限がありません。"
-  no-protection: "§c保護ルールを管理する権限がありません。"
+  no-rule: "§c保護ルールを管理する権限がありません。"
   no-rename: "§c土地の名前を変更する権限がありません。"
-  no-subclaim: "§cサブクレームを作成する権限がありません。"
+  no-subcreate: "§cサブクレームを作成する権限がありません。"
   no-select: "§c選択ツールを使用する権限がありません。"
+  no-setspawn: "§c土地のスポーン地点を設定する権限がありません。"
+  no-tp: "§c土地へテレポートする権限がありません。"
+  no-enter: "§cこの土地に入る権限がありません！"
+  no-break: "§cここでブロックを破壊する権限がありません！"
+  no-build: "§cここで建築する権限がありません！"
+  no-interact: "§cここでインタラクトする権限がありません！"
+  no-use: "§cここでアイテムを使用する権限がありません！"
+  no-pvp: "§cここではPvPが無効です！"
   admin-bypass: "§6[管理者] §e土地保護をバイパスしました。"
   admin-manage: "§6[管理者] §e他のプレイヤーの土地を管理しています。"
+
+# 通知
+notification:
+  enter-land: "§a土地に入りました: %s §7(所有者: %s)"
+  leave-land: "§e土地から出ました: %s"
+  enter-wilderness: "§a荒野に入りました"
 
 # 土地を作成
 create:
@@ -44,7 +59,7 @@ list:
   empty: "§eまだ土地がありません。"
   all-lands: "すべての土地（サーバー全体）"
   header: "§6=== %s の土地リスト ==="
-  item: "§e#%s §f%s §7| §bオーナー: §a%s §7| §d%s"
+  item: "§e#%s §f%s §7| §b所有者: §a%s §7| §d%s"
   page-info: "§7ページ §e%s§7/§e%s§7 (合計: §e%s§7 の土地)"
   page-simple: "§7ページ §e%s§7"
   separator: "§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -66,10 +81,18 @@ info:
   no-land-here: "§cここには土地がありません。"
   header: "§6=== 土地情報 ==="
   id: "§e土地ID: %s"
+  name: "§e土地名: %s"
   unclaimed: "§e所有者: なし"
   owner: "§e所有者: %s"
   world: "§eワールド: %s"
-  chunks: "§e面積: %s ブロック"
+  coords: "§e座標: %s"
+  area: "§e面積: %s ブロック"
+  flags: "§e保護ルール: %s"
+  flag-enabled: "§a%s"
+  flag-disabled: "§c%s"
+  flag-separator: "§7, "
+  rules-header: "§6保護ルール:"
+  rule-format: "  §e%s (%s): %s"
 
 # 土地の放棄
 abandon:
@@ -80,17 +103,52 @@ abandon:
 show:
   no-permission: "§c土地の境界を表示する権限がありません。"
   no-land-here: "§cここには土地がありません。"
+  no-land-found: "§c土地が見つかりません。"
+  showing-nearest: "§a最寄りの土地を表示中: %s"
   invalid-duration: "§c無効な持続時間です。最大値は %s 秒です。"
   success: "§a土地の境界を %s 秒間表示します。"
 
 # 保護ルール
 rule:
-  status-header: "§6=== 現在の保護ステータス ==="
+  success: "§aルール %s を %s に設定しました！"
+  failed: "§cルールの設定に失敗しました。"
+  invalid-rule: "§c無効なルールです。利用可能なルール: %s"
+  status-header: "§6=== 土地ルール ==="
   status-enabled: "§e%s: §a有効"
   status-disabled: "§e%s: §c無効"
-  invalid-rule: "§c無効な保護ルールです。利用可能なルール: %s"
-  set-success: "§a保護ルール %s を %s に設定しました。"
-  usage-tip: "§e使用法: /easyland protection <ルール> <on|off>"
+  status-allow: "§a許可"
+  status-deny: "§c拒否"
+  format: "§e%s (%s): %s"
+
+# スポーン地点の設定
+setspawn:
+  success: "§a土地 %s のスポーン地点を設定しました！"
+  failed: "§cスポーン地点の設定に失敗しました。土地の中にいることを確認してください。"
+
+tp:
+  success: "§a土地 %s へテレポート中..."
+  failed: "§cテレポートに失敗しました。土地が存在しないか、スポーン地点が設定されていません。"
+
+# ヘルプ
+help:
+  header: "§6=== EasyLand ヘルプ ==="
+  claim: "§e/el claim [ID] §7- 現在位置の土地を請求"
+  delete: "§e/el delete [ID] §7- 土地を削除"
+  list: "§e/el list [ページ] §7- 土地リストを表示"
+  trust: "§e/el trust <プレイヤー> §7- プレイヤーを信頼"
+  untrust: "§e/el untrust <プレイヤー> §7- プレイヤーの信頼を解除"
+  info: "§e/el info §7- 現在位置の土地情報を表示"
+  create: "§e/el create §7- 新しい土地を作成（管理者）"
+  abandon: "§e/el abandon [ID] §7- 土地を放棄"
+  show: "§e/el show [時間] §7- 土地の境界を表示"
+  rule: "§e/el rule [土地] <ルール> <true|false> §7- 土地のルールを管理"
+  reload: "§e/el reload §7- 設定を再読み込み"
+  rename: "§e/el rename <ID> <新しい名前> §7- 土地の名前を変更"
+  subcreate: "§e/el subcreate <親土地> [名前] §7- サブクレームを作成"
+  migrate: "§e/el migrate <プラグイン> §7- 他のプラグインからデータを移行"
+  select: "§e/el select §7- 土地選択ツールを取得"
+  setspawn: "§e/el setspawn <土地> §7- 土地のスポーン地点を設定"
+  tp: "§e/el tp <ID/名前> §7- 土地へテレポート"
 
 # 土地の名前変更
 rename:
@@ -98,7 +156,7 @@ rename:
   failed: "§c土地の名前変更に失敗しました。"
 
 # サブクレーム
-subclaim:
+subcreate:
   success: "§aサブクレームの作成に成功しました！ID: %s"
   failed: "§cサブクレームの作成に失敗しました。"
   select-positions: "§eサブクレームを作成するために2つの位置を選択してください。"
@@ -111,25 +169,6 @@ select:
   selection-complete: "§a選択が完了しました！面積: §e%s §aブロック。 §e/el create §aで土地を作成してください。"
   different-worlds: "§c両方の位置は同じワールドにある必要があります！"
   incomplete: "§cまず選択ツールを使用して2つの位置を選択してください。"
-
-# ヘルプ
-help:
-  header: "§6=== EasyLand ヘルプ ==="
-  select: "§e/el select - 土地選択ツールを取得"
-  create: "§e/el create - 土地を作成"
-  claim: "§e/el claim <landId> - 土地を請求"
-  abandon: "§e/el abandon <landId> - 土地を放棄"
-  delete: "§e/el delete <landId> - 土地を削除"
-  info: "§e/el info [landId] - 土地情報を表示"
-  list: "§e/el list [page] - 土地リストを表示"
-  show: "§e/el show [duration] - 土地境界を表示"
-  trust: "§e/el trust <landId> <player> - プレイヤーを信頼"
-  untrust: "§e/el untrust <landId> <player> - プレイヤーの信頼を解除"
-  protection: "§e/el protection [rule] [on|off] - 保護ルールを管理"
-  rename: "§e/el rename <landId> <newName> - 土地の名前を変更"
-  subclaim: "§e/el subclaim <parentLandId> - サブクレームを作成"
-  reload: "§e/el reload - 設定を再読み込み"
-  migrate: "§e/el migrate [confirm|cancel] - 旧YAMLファイルからSQLiteデータベースへデータを移行"
 
 # データ移行
 migrate:
@@ -155,3 +194,26 @@ migrate:
   failed-file-instruction: "§e[Easyland] 旧データファイルがoldfiles/フォルダに正しく配置されていることを確認してください。"
   failed-check-console: "§e[Easyland] 詳細なエラー情報についてはコンソールを確認してください。"
   cancelled: "§e[Easyland] データ移行がキャンセルされました。"
+
+# フラグの説明
+flags:
+  build: "建築/ブロック設置を許可"
+  break: "ブロック破壊を許可"
+  interact: "ブロックへのインタラクトを許可"
+  use: "アイテムの使用を許可"
+  enter: "土地への進入を許可"
+  mob_spawning: "モブのスポーンを許可"
+  pvp: "PvPを許可"
+  pve: "PvEを許可"
+  explosions: "爆発を許可"
+  fire_spread: "火の延焼を許可"
+
+# ツール
+tool:
+  name: "&6&l✦ EasyLand 選択ツール ✦"
+  lore:
+    - ""
+    - "&e▸ 左クリックで &a最初の位置を設定"
+    - "&e▸ 右クリックで &a2番目の位置を設定"
+    - ""
+    - "&7&o選択後 /el create で土地を作成"
