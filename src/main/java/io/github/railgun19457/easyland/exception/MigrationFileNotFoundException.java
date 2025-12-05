@@ -13,7 +13,7 @@ public class MigrationFileNotFoundException extends Exception {
      * @param fileName 不存在的文件名
      */
     public MigrationFileNotFoundException(String fileName) {
-        super("迁移所需的文件 '" + fileName + "' 不存在。请确保旧版数据文件已正确放置在 oldfiles/ 目录中。");
+        super("迁移所需的文件 '" + fileName + "' 不存在。请确保旧版数据文件已正确放置在插件目录中。");
         this.fileName = fileName;
     }
     
