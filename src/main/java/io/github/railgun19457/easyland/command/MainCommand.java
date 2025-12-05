@@ -874,7 +874,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
 
         java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> flags = land.getFlagMap();
-        boolean enabled = flags.getOrDefault(flag, false);
+        // 数据库完整性检查确保了所有标志都存在
+        boolean enabled = Boolean.TRUE.equals(flags.get(flag));
 
         String status = enabled ? i18nManager.getMessage("rule.status-allow") : i18nManager.getMessage("rule.status-deny");
         player.sendMessage(i18nManager.getMessage("rule.format", i18nManager.getMessage("flags." + flag.getName()), flag.getName(), status));

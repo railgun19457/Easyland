@@ -24,6 +24,12 @@ permission:
   no-select: "§c你没有使用选择工具的权限。"
   no-setspawn: "§c你没有设置领地传送点的权限。"
   no-tp: "§c你没有传送到领地的权限。"
+  no-enter: "§c你没有权限进入此领地！"
+  no-break: "§c你没有权限在此处破坏方块！"
+  no-build: "§c你没有权限在此处建造！"
+  no-interact: "§c你没有权限在此处交互！"
+  no-use: "§c你没有权限在此处使用物品！"
+  no-pvp: "§c此处禁止 PvP！"
   admin-bypass: "§6[管理员] §e你绕过了领地保护。"
   admin-manage: "§6[管理员] §e你正在管理其他玩家的领地。"
 

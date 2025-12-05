@@ -72,6 +72,9 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
             // 初始化管理器
             initializeManagers();
 
+            // 确保所有领地都有完整的标志
+            ensureDatabaseIntegrity();
+
             // 注册事件监听器
             registerListeners();
             
@@ -127,6 +130,26 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         databaseManager.fixMissingData();
         
         logger.info("数据库初始化完成。");
+    }
+
+    /**
+     * 确保数据库完整性，特别是补全缺失的标志。
+     */
+    private void ensureDatabaseIntegrity() {
+        logger.info("正在检查数据库完整性...");
+        try {
+            // 获取所有标志的默认值
+            java.util.Map<String, Boolean> defaultFlags = new java.util.HashMap<>();
+            for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+                defaultFlags.put(flag.getName(), configManager.getDefaultRuleValue(flag.getName()));
+            }
+            
+            // 确保所有领地都有这些标志
+            landDAO.ensureAllFlagsExist(defaultFlags);
+            logger.info("数据库完整性检查完成。");
+        } catch (SQLException e) {
+            logger.severe("检查数据库完整性时出错: " + e.getMessage());
+        }
     }
 
     /**

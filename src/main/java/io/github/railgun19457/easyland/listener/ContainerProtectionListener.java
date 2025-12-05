@@ -106,8 +106,7 @@ public class ContainerProtectionListener extends BaseProtectionListener {
             // 检查玩家是否有权限与该方块交互
             if (!flagManager.hasPermission(event.getPlayer(), clickedBlock.getLocation(), LandFlag.INTERACT)) {
                 event.setCancelled(true);
-                // 可以在这里添加消息通知玩家
-                // event.getPlayer().sendMessage("你没有权限与此方块交互！");
+                sendDenyMessage(event.getPlayer(), "permission.no-interact");
             }
         }
     }

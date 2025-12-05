@@ -429,6 +429,13 @@ public class MigrationManager {
                         Map<String, Object> castedProtection = (Map<String, Object>) protectionRaw;
                         protection = castedProtection;
                     }
+                    
+                    // 准备所有标志的默认值
+                    java.util.Map<String, Boolean> finalFlags = new java.util.HashMap<>();
+                    for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
+                        finalFlags.put(flag.getName(), configManager.getDefaultRuleValue(flag.getName()));
+                    }
+                    
                     if (protection != null && !protection.isEmpty()) {
                         logger.info("领地 " + landName + " 有 " + protection.size() + " 个保护规则");
                         for (Map.Entry<String, Object> protectionEntry : protection.entrySet()) {
@@ -444,11 +451,16 @@ public class MigrationManager {
                                 boolean allow = !isProtected;
                                 
                                 for (String newFlag : newFlags) {
-                                    insertLandFlag(conn, landId, newFlag, allow);
+                                    finalFlags.put(newFlag, allow);
                                     logger.info("为领地 " + landName + " 设置规则: " + newFlag + " = " + allow);
                                 }
                             }
                         }
+                    }
+                    
+                    // 插入所有标志
+                    for (Map.Entry<String, Boolean> entry : finalFlags.entrySet()) {
+                        insertLandFlag(conn, landId, entry.getKey(), entry.getValue());
                     }
 
                     migratedCount++;

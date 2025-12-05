@@ -105,19 +105,17 @@ public class LandVisualizer {
         // Edges: Aqua (Visible and friendly)
         Particle.DustOptions edgeColor = new Particle.DustOptions(Color.fromRGB(0, 255, 255), 1.0f);
 
-        // 1. Draw Corners (Vertical pillars relative to player height)
-        // Show from slightly below to slightly above player to ensure visibility
-        int minY = (int) Math.max(world.getMinHeight(), playerY - 10);
-        int maxY = (int) Math.min(world.getMaxHeight(), playerY + 10);
-
-        drawCorner(player, world, x1, z1, minY, maxY, cornerColor);
-        drawCorner(player, world, x1, z2, minY, maxY, cornerColor);
-        drawCorner(player, world, x2, z1, minY, maxY, cornerColor);
-        drawCorner(player, world, x2, z2, minY, maxY, cornerColor);
-
-        // 2. Draw Edges (Two layers: Feet and Head level)
+        // Define height range (Feet and Head level)
         double yBottom = playerY + 0.2;
         double yTop = playerY + 2.2;
+
+        // 1. Draw Corners
+        drawCorner(player, world, x1, z1, yBottom, yTop, cornerColor);
+        drawCorner(player, world, x1, z2, yBottom, yTop, cornerColor);
+        drawCorner(player, world, x2, z1, yBottom, yTop, cornerColor);
+        drawCorner(player, world, x2, z2, yBottom, yTop, cornerColor);
+
+        // 2. Draw Edges
 
         // Draw along X axis
         for (int x = x1; x <= x2; x++) {
@@ -147,12 +145,10 @@ public class LandVisualizer {
     /**
      * Draws a vertical pillar at a corner.
      */
-    private void drawCorner(Player player, World world, int x, int z, int minY, int maxY, Particle.DustOptions options) {
-        for (int y = minY; y <= maxY; y += 1) {
-            spawnParticle(player, world, x + 0.5, y + 0.5, z + 0.5, options);
+    private void drawCorner(Player player, World world, int x, int z, double minY, double maxY, Particle.DustOptions options) {
+        for (double y = minY; y <= maxY; y += 0.2) {
+            spawnParticle(player, world, x + 0.5, y, z + 0.5, options);
         }
-        // Add a highlight at the top of the pillar (relative to player)
-        // spawnParticle(player, world, x + 0.5, maxY + 0.5, z + 0.5, options); 
     }
 
     /**

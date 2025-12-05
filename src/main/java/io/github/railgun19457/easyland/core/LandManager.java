@@ -111,14 +111,10 @@ public class LandManager {
 
             // Initialize default flags
             java.util.Map<io.github.railgun19457.easyland.model.LandFlag, Boolean> defaultFlags = new java.util.HashMap<>();
-            // Add default allowed flags
-            defaultFlags.put(io.github.railgun19457.easyland.model.LandFlag.ENTER, true);
-            defaultFlags.put(io.github.railgun19457.easyland.model.LandFlag.MOB_SPAWNING, true);
-            // Add other flags as false (explicitly)
+            // Load default flags from config
             for (io.github.railgun19457.easyland.model.LandFlag flag : io.github.railgun19457.easyland.model.LandFlag.values()) {
-                defaultFlags.putIfAbsent(flag, false);
+                defaultFlags.put(flag, configManager.getDefaultRuleValue(flag.getName()));
             }
-            // Add other flags based on configuration if needed
 
             // Create the land using Builder pattern
             Land land = Land.builder()

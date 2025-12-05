@@ -38,8 +38,7 @@ public class BlockProtectionListener extends BaseProtectionListener {
         // 检查玩家是否有权限破坏该方块
         if (!flagManager.hasPermission(event.getPlayer(), event.getBlock().getLocation(), LandFlag.BREAK)) {
             event.setCancelled(true);
-            // 可以在这里添加消息通知玩家
-            // event.getPlayer().sendMessage("你没有权限在此处破坏方块！");
+            sendDenyMessage(event.getPlayer(), "permission.no-break");
         }
     }
 
@@ -59,8 +58,44 @@ public class BlockProtectionListener extends BaseProtectionListener {
         // 检查玩家是否有权限在该位置放置方块
         if (!flagManager.hasPermission(event.getPlayer(), event.getBlock().getLocation(), LandFlag.BUILD)) {
             event.setCancelled(true);
-            // 可以在这里添加消息通知玩家
-            // event.getPlayer().sendMessage("你没有权限在此处建造！");
+            sendDenyMessage(event.getPlayer(), "permission.no-build");
+        }
+    }
+
+    /**
+     * 处理方块点燃事件。
+     * 如果是火焰蔓延且 FIRE_SPREAD 标志未启用，则阻止点燃。
+     *
+     * @param event 方块点燃事件
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBlockIgnite(org.bukkit.event.block.BlockIgniteEvent event) {
+        if (isEventCancelled(event)) {
+            return;
+        }
+
+        // 检查是否是火焰蔓延
+        if (event.getCause() == org.bukkit.event.block.BlockIgniteEvent.IgniteCause.SPREAD) {
+            if (!flagManager.isFlagEnabled(event.getBlock().getLocation(), LandFlag.FIRE_SPREAD)) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    /**
+     * 处理方块燃烧事件。
+     * 如果 FIRE_SPREAD 标志未启用，则阻止方块燃烧。
+     *
+     * @param event 方块燃烧事件
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBlockBurn(org.bukkit.event.block.BlockBurnEvent event) {
+        if (isEventCancelled(event)) {
+            return;
+        }
+
+        if (!flagManager.isFlagEnabled(event.getBlock().getLocation(), LandFlag.FIRE_SPREAD)) {
+            event.setCancelled(true);
         }
     }
 }

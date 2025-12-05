@@ -130,4 +130,13 @@ public interface LandDAO {
      * @throws SQLException if a database access error occurs
      */
     List<Land> getSubLands(int parentLandId) throws SQLException;
+
+    /**
+     * Ensures that all lands have all defined flags in the database.
+     * Missing flags will be inserted with their default values.
+     *
+     * @param defaultFlags A map of flag names to their default values
+     * @throws SQLException if a database access error occurs
+     */
+    void ensureAllFlagsExist(java.util.Map<String, Boolean> defaultFlags) throws SQLException;
 }

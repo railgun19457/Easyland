@@ -68,6 +68,11 @@ public class SqliteLandDAO implements LandDAO {
             }
             
             // 保存初始标志
+            // 如果 land 对象中没有设置标志，则不插入任何内容
+            // 注意：调用者（如 LandManager）应该负责设置默认标志，或者我们在这里强制插入默认值
+            // 但由于 createLand 接口只接收 Land 对象，我们假设 Land 对象已经包含了所有需要的标志
+            // 或者，我们可以依赖 ensureAllFlagsExist 在启动时修复，但这不适用于运行时创建的领地
+            // 因此，最好在 LandManager 中创建 Land 时就填充默认标志
             if (land.getFlagMap() != null && !land.getFlagMap().isEmpty()) {
                 insertLandFlags(conn, land.getId(), land.getFlagMap());
             }
@@ -85,10 +90,8 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    Land land = mapResultSetToLand(rs);
-                    land.setFlagMap(loadLandFlags(id));
-                    land.setTrustedPlayers(loadLandTrusts(id));
-                    return Optional.of(land);
+                    // mapResultSetToLand 现在会自动加载标志和信任玩家
+                    return Optional.of(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -107,7 +110,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapResultSetToLand(rs));
+                    return Optional.of(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -141,7 +144,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapResultSetToLand(rs));
+                    return Optional.of(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -161,7 +164,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -181,7 +184,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -205,7 +208,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -314,7 +317,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -351,7 +354,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -371,7 +374,7 @@ public class SqliteLandDAO implements LandDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    lands.add(mapResultSetToLand(rs));
+                    lands.add(mapResultSetToLand(conn, rs));
                 }
             }
         }
@@ -382,11 +385,12 @@ public class SqliteLandDAO implements LandDAO {
     /**
      * Maps a ResultSet to a Land object.
      *
+     * @param conn The database connection
      * @param rs The ResultSet to map
      * @return The mapped Land object
      * @throws SQLException if a database access error occurs
      */
-    private Land mapResultSetToLand(ResultSet rs) throws SQLException {
+    private Land mapResultSetToLand(Connection conn, ResultSet rs) throws SQLException {
         Land land = new Land();
         land.setId(rs.getInt("id"));
         land.setName(rs.getString("name"));
@@ -414,6 +418,12 @@ public class SqliteLandDAO implements LandDAO {
             land.setTeleportYaw(rs.getFloat("teleport_yaw"));
             land.setTeleportPitch(rs.getFloat("teleport_pitch"));
         }
+        
+        // 加载标志和信任玩家
+        // 注意：这会导致 N+1 查询问题，但在当前架构下是必要的，以确保 Land 对象完整
+        // 如果性能成为问题，可以考虑使用 JOIN 查询或批量加载
+        land.setFlagMap(loadLandFlags(conn, land.getId()));
+        land.setTrustedPlayers(loadLandTrusts(conn, land.getId()));
         
         return land;
     }
@@ -453,16 +463,16 @@ public class SqliteLandDAO implements LandDAO {
     /**
      * Loads flags for a land.
      *
+     * @param conn The database connection
      * @param landId The land ID
      * @return A map of flags and their values
      * @throws SQLException if a database access error occurs
      */
-    private java.util.Map<LandFlag, Boolean> loadLandFlags(int landId) throws SQLException {
+    private java.util.Map<LandFlag, Boolean> loadLandFlags(Connection conn, int landId) throws SQLException {
         java.util.Map<LandFlag, Boolean> flags = new java.util.HashMap<>();
         String sql = "SELECT flag_name, flag_value FROM land_flags WHERE land_id = ?";
         
-        try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, landId);
             
@@ -488,16 +498,16 @@ public class SqliteLandDAO implements LandDAO {
     /**
      * Loads trusted players for a land.
      *
+     * @param conn The database connection
      * @param landId The land ID
      * @return A list of trusted players
      * @throws SQLException if a database access error occurs
      */
-    private List<io.github.railgun19457.easyland.model.Player> loadLandTrusts(int landId) throws SQLException {
+    private List<io.github.railgun19457.easyland.model.Player> loadLandTrusts(Connection conn, int landId) throws SQLException {
         List<io.github.railgun19457.easyland.model.Player> trustedPlayers = new ArrayList<>();
         String sql = "SELECT p.* FROM land_trusts lt JOIN players p ON lt.player_id = p.id WHERE lt.land_id = ?";
         
-        try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, landId);
             
@@ -534,6 +544,42 @@ public class SqliteLandDAO implements LandDAO {
                 stmt.addBatch();
             }
             stmt.executeBatch();
+        }
+    }
+
+    @Override
+    public void ensureAllFlagsExist(java.util.Map<String, Boolean> defaultFlags) throws SQLException {
+        // 使用 INSERT OR IGNORE 批量插入缺失的标志
+        String sql = "INSERT OR IGNORE INTO land_flags (land_id, flag_name, flag_value) " +
+                     "SELECT l.id, ?, ? FROM lands l " +
+                     "WHERE NOT EXISTS (SELECT 1 FROM land_flags lf WHERE lf.land_id = l.id AND lf.flag_name = ?)";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            // 关闭自动提交以提高性能
+            boolean originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            
+            try {
+                for (java.util.Map.Entry<String, Boolean> entry : defaultFlags.entrySet()) {
+                    String flagName = entry.getKey();
+                    String flagValue = String.valueOf(entry.getValue());
+                    
+                    stmt.setString(1, flagName);
+                    stmt.setString(2, flagValue);
+                    stmt.setString(3, flagName);
+                    stmt.addBatch();
+                }
+                
+                stmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(originalAutoCommit);
+            }
         }
     }
 }

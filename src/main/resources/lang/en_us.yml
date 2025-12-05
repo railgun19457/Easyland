@@ -21,6 +21,12 @@ permission:
   no-rename: "§cYou don't have permission to rename land."
   no-subclaim: "§cYou don't have permission to create sub-claims."
   no-select: "§cYou don't have permission to use the selection tool."
+  no-enter: "§cYou don't have permission to enter this land."
+  no-break: "§cYou don't have permission to break blocks here."
+  no-build: "§cYou don't have permission to build here."
+  no-interact: "§cYou don't have permission to interact here."
+  no-use: "§cYou don't have permission to use items here."
+  no-pvp: "§cPvP is disabled here."
   admin-bypass: "§6[Admin] §eYou bypassed land protection."
   admin-manage: "§6[Admin] §eYou are managing another player's land."
 

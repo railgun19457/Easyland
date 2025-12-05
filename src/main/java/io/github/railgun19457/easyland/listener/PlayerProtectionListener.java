@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 
 /**
  * 监听玩家伤害事件，实现领地 PvP 保护。
@@ -54,6 +55,7 @@ public class PlayerProtectionListener extends BaseProtectionListener {
             // 检查该位置是否允许 PvP
             if (!flagManager.isFlagEnabled(victimPlayer.getLocation(), LandFlag.PVP)) {
                 event.setCancelled(true);
+                sendDenyMessage((Player) realDamager, "permission.no-pvp");
             }
             return;
         }
@@ -66,6 +68,31 @@ public class PlayerProtectionListener extends BaseProtectionListener {
                 event.setCancelled(true);
             }
             return;
+        }
+    }
+
+    /**
+     * 处理玩家交互事件。
+     * 如果玩家使用物品且 USE 标志未启用，则阻止使用。
+     *
+     * @param event 玩家交互事件
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (isEventCancelled(event)) {
+            return;
+        }
+
+        // 检查是否是使用物品
+        if (event.hasItem()) {
+            // 确定检查位置：如果是点击方块，则检查方块位置；否则检查玩家位置
+            org.bukkit.Location location = event.getClickedBlock() != null ? 
+                    event.getClickedBlock().getLocation() : event.getPlayer().getLocation();
+
+            if (!flagManager.hasPermission(event.getPlayer(), location, LandFlag.USE)) {
+                event.setCancelled(true);
+                sendDenyMessage(event.getPlayer(), "permission.no-use");
+            }
         }
     }
 }

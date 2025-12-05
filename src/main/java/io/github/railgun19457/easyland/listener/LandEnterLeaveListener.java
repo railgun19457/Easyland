@@ -4,6 +4,7 @@ import io.github.railgun19457.easyland.EasyLand;
 import io.github.railgun19457.easyland.I18nManager;
 import io.github.railgun19457.easyland.core.LandManager;
 import io.github.railgun19457.easyland.model.Land;
+import io.github.railgun19457.easyland.model.LandFlag;
 import io.github.railgun19457.easyland.model.Player;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.EventHandler;
@@ -27,7 +28,9 @@ public class LandEnterLeaveListener implements Listener {
 
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        handleMove(event.getPlayer(), event.getFrom(), event.getTo());
+        if (!handleMove(event.getPlayer(), event.getFrom(), event.getTo())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler
@@ -38,12 +41,46 @@ public class LandEnterLeaveListener implements Listener {
             return;
         }
         
-        handleMove(event.getPlayer(), event.getFrom(), event.getTo());
+        if (!handleMove(event.getPlayer(), event.getFrom(), event.getTo())) {
+            event.setCancelled(true);
+        }
     }
 
-    private void handleMove(org.bukkit.entity.Player player, org.bukkit.Location from, org.bukkit.Location to) {
+    private boolean handleMove(org.bukkit.entity.Player player, org.bukkit.Location from, org.bukkit.Location to) {
         Land fromLand = landManager.getLandAt(from);
         Land toLand = landManager.getLandAt(to);
+
+        // 检查进入权限
+        if (toLand != null && (fromLand == null || fromLand.getId() != toLand.getId())) {
+            if (!plugin.getFlagManager().hasPermission(player, to, LandFlag.ENTER)) {
+                // 计算反向向量
+                org.bukkit.util.Vector direction = from.toVector().subtract(to.toVector()).normalize();
+                // 给一个向后的速度，稍微向上一点，防止卡住
+                // 如果方向向量为0（例如直接传送），则给一个默认的后退向量
+                if (Double.isNaN(direction.getX()) || Double.isNaN(direction.getY()) || Double.isNaN(direction.getZ()) || direction.lengthSquared() == 0) {
+                    direction = player.getLocation().getDirection().multiply(-1).normalize();
+                }
+                
+                final org.bukkit.util.Vector knockback = direction.multiply(0.5).setY(0.2);
+                
+                // 延迟一刻执行击退，防止被事件取消覆盖
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    player.setVelocity(knockback);
+                });
+                
+                // 显示边界
+                plugin.getLandVisualizer().showLandBoundary(player, toLand, 3);
+                
+                // 发送拒绝消息
+                String message = i18nManager.getMessage("permission.no-enter");
+                if (message.equals("permission.no-enter")) {
+                    message = "§c你没有权限进入此领地！";
+                }
+                player.sendActionBar(Component.text(message));
+                
+                return false;
+            }
+        }
 
         // 情况1：从野外进入领地
         if (fromLand == null && toLand != null) {
@@ -58,6 +95,8 @@ public class LandEnterLeaveListener implements Listener {
             // 显示进入新领地
             sendEnterNotification(player, toLand);
         }
+        
+        return true;
     }
 
     private void sendEnterNotification(org.bukkit.entity.Player player, Land land) {

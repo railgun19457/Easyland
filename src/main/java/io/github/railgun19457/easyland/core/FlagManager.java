@@ -48,16 +48,6 @@ public class FlagManager {
     }
     
     /**
-     * 获取标志的默认值。
-     *
-     * @param flag 要获取默认值的标志
-     * @return 标志的默认值
-     */
-    private boolean getDefaultFlagValue(LandFlag flag) {
-        return configManager.getDefaultRuleValue(flag.getName());
-    }
-
-    /**
      * 检查特定保护规则是否在服务器级别启用。
      *
      * @param flag 要检查的保护标志
@@ -107,12 +97,8 @@ public class FlagManager {
             Land fullLand = fullLandOpt.get();
             java.util.Map<LandFlag, Boolean> flags = fullLand.getFlagMap();
 
-            // 如果没有设置标志，则使用默认值
-            if (flags == null || flags.isEmpty()) {
-                return getDefaultFlagValue(flag);
-            }
-
             // 检查标志是否被启用
+            // 数据库完整性检查确保了所有标志都存在
             return Boolean.TRUE.equals(flags.get(flag));
 
         } catch (SQLException e) {
