@@ -75,6 +75,10 @@ trust:
   untrust-no-permission: "§cYou don't have permission to untrust players."
   untrust-success: "§aSuccessfully untrusted player %s!"
   untrust-failed: "§cFailed to untrust player."
+  list:
+    header: "§6=== Trust List for Land %s ==="
+    empty: "§eLand %s has no trusted players."
+    players: "§eTrusted Players: §f%s"
 
 # Land Info
 info:

@@ -75,6 +75,10 @@ trust:
   untrust-no-permission: "§cプレイヤーの信頼を解除する権限がありません。"
   untrust-success: "§aプレイヤー %s の信頼を解除しました！"
   untrust-failed: "§cプレイヤーの信頼解除に失敗しました。"
+  list:
+    header: "§6=== 領地 %s の信頼リスト ==="
+    empty: "§e領地 %s には信頼されたプレイヤーがいません。"
+    players: "§e信頼されたプレイヤー: §f%s"
 
 # 土地情報
 info:

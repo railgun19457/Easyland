@@ -75,6 +75,10 @@ trust:
   untrust-no-permission: "§c你没有取消信任玩家的权限。"
   untrust-success: "§a成功取消信任玩家 %s！"
   untrust-failed: "§c取消信任玩家失败。"
+  list:
+    header: "§6=== 领地 %s 的信任列表 ==="
+    empty: "§e领地 %s 没有信任的玩家。"
+    players: "§e信任玩家: §f%s"
 
 # 领地信息
 info:

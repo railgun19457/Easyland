@@ -36,7 +36,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     
     // 子命令列表
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "reload", "rename", "subcreate", "migrate", "select", "setspawn", "tp", "rule"
+        "claim", "delete", "list", "trust", "untrust", "info", "help", "create", "abandon", "show", "reload", "rename", "subcreate", "migrate", "select", "setspawn", "tp", "rule", "trustlist"
     );
     
     // 管理员子命令列表
@@ -55,6 +55,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("delete", "easyland.delete"),
         Map.entry("list", "easyland.list"),
         Map.entry("trust", "easyland.trust"),
+        Map.entry("trustlist", "easyland.trust"),
         Map.entry("untrust", "easyland.trust"),
         Map.entry("info", "easyland.info"),
         Map.entry("create", "easyland.create"),
@@ -80,7 +81,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Map.entry("easyland.info", List.of("help.info")),
         Map.entry("easyland.list", List.of("help.list")),
         Map.entry("easyland.show", List.of("help.show")),
-        Map.entry("easyland.trust", List.of("help.trust", "help.untrust")),
+        Map.entry("easyland.trust", List.of("help.trust", "help.untrust", "help.trustlist")),
         Map.entry("easyland.subcreate", List.of("help.subcreate")),
         Map.entry("easyland.admin", List.of("help.reload")),
         Map.entry("easyland.admin.migrate", List.of("help.migrate")),
@@ -193,6 +194,10 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 
             case "untrust":
                 handleUntrust(player, args, commandName);
+                break;
+
+            case "trustlist":
+                handleTrustList(player, args, commandName);
                 break;
                 
             case "info":
@@ -499,6 +504,42 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         } else {
             player.sendMessage(i18nManager.getMessage("trust.untrust-failed"));
         }
+    }
+
+    /**
+     * 处理trustlist命令。
+     */
+    private void handleTrustList(Player player, String[] args, String commandName) {
+        if (!checkPermission(player, "easyland.trust", "permission.no-trust")) {
+            return;
+        }
+        
+        if (!validateArgs(player, args, 2, "trustlist <landId>", commandName)) {
+            return;
+        }
+        
+        String landId = args[1];
+        Optional<io.github.railgun19457.easyland.model.Land> landOpt = landManager.getLandByIdOrName(landId);
+        
+        if (landOpt.isEmpty()) {
+            player.sendMessage(i18nManager.getMessage("delete.not-found"));
+            return;
+        }
+        
+        io.github.railgun19457.easyland.model.Land land = landOpt.get();
+        
+        List<io.github.railgun19457.easyland.model.Player> trustedPlayers = land.getTrustedPlayers();
+        if (trustedPlayers == null || trustedPlayers.isEmpty()) {
+            player.sendMessage(i18nManager.getMessage("trust.list.empty", land.getName()));
+            return;
+        }
+        
+        String playerNames = trustedPlayers.stream()
+            .map(io.github.railgun19457.easyland.model.Player::getName)
+            .collect(java.util.stream.Collectors.joining(", "));
+            
+        player.sendMessage(i18nManager.getMessage("trust.list.header", land.getName()));
+        player.sendMessage(i18nManager.getMessage("trust.list.players", playerNames));
     }
     
     /**
@@ -1175,6 +1216,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "rename":
                 case "setspawn":
                 case "subcreate":
+                case "trustlist":
                     // 补全玩家拥有的领地ID和名称
                     if (args.length == 2 && player != null) {
                         completions.addAll(getPlayerLandCompletions(player));
