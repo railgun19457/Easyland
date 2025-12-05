@@ -9,7 +9,7 @@
     <version>2.0.0</version>
     <packaging>jar</packaging>
 
-    <name>EasyLand</name>
+    <name>Easyland</name>
     <description>A simple and easy-to-use land protection plugin for Paper servers.</description>
 
     <properties>

@@ -1,4 +1,4 @@
-name: EasyLand
+name: Easyland
 version: "${project.version}"
 main: io.github.railgun19457.easyland.EasyLand
 api-version: "1.21"
