@@ -6,6 +6,7 @@ general:
   player-only-command: "§c此命令只能由玩家执行。"
   no-permission: "§c你没有权限执行此命令。"
   invalid-args: "§c无效的参数。用法: %s"
+  invalid-name-format: "§c领地名称格式无效。只允许字母、数字、下划线、中划线和中文字符。"
   reload-success: "§a配置文件已重新加载。"
   unknown: "未知"
 

@@ -6,6 +6,7 @@ general:
   player-only-command: "§cこのコマンドはプレイヤーのみが実行できます。"
   no-permission: "§cこのコマンドを実行する権限がありません。"
   invalid-args: "§c無効な引数です。使用法: %s"
+  invalid-name-format: "§c土地名の形式が無効です。文字、数字、アンダースコア、ハイフン、および漢字のみが許可されています。"
   reload-success: "§a設定が正常に再読み込みされました。"
   unknown: "不明"
 

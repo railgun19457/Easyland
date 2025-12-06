@@ -91,6 +91,17 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     );
     
     /**
+     * 验证领地名称是否合法。
+     * 只允许字母、数字、下划线、中划线和中文字符。
+     *
+     * @param name 领地名称
+     * @return 是否合法
+     */
+    private boolean isValidLandName(String name) {
+        return name.matches("^[a-zA-Z0-9_\\-\u4e00-\u9fa5]+$");
+    }
+    
+    /**
      * 构造函数。
      *
      * @param plugin 插件主类实例
@@ -662,6 +673,10 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         String name = null;
         if (args.length > 1) {
             name = args[1];
+            if (!isValidLandName(name)) {
+                player.sendMessage(i18nManager.getMessage("general.invalid-name-format"));
+                return;
+            }
         }
         
         // 创建领地
@@ -963,9 +978,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         String landId = args[1];
         String newName = args[2];
         
-        // Concatenate the rest of the args for the new name
-        for (int i = 3; i < args.length; i++) {
-            newName += " " + args[i];
+        if (!isValidLandName(newName)) {
+            player.sendMessage(i18nManager.getMessage("general.invalid-name-format"));
+            return;
         }
         
         boolean success = landManager.renameLand(player, landId, newName);
@@ -993,6 +1008,10 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         String name = null;
         if (args.length > 2) {
             name = args[2];
+            if (!isValidLandName(name)) {
+                player.sendMessage(i18nManager.getMessage("general.invalid-name-format"));
+                return;
+            }
         }
         
         // 检查玩家是否有完整的选区

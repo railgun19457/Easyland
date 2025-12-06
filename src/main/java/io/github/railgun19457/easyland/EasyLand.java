@@ -11,6 +11,7 @@ import io.github.railgun19457.easyland.listener.BlockProtectionListener;
 import io.github.railgun19457.easyland.listener.ContainerProtectionListener;
 import io.github.railgun19457.easyland.listener.ExplosionProtectionListener;
 import io.github.railgun19457.easyland.listener.LandEnterLeaveListener;
+import io.github.railgun19457.easyland.listener.MobProtectionListener;
 import io.github.railgun19457.easyland.listener.PlayerProtectionListener;
 import io.github.railgun19457.easyland.listener.SelectionToolListener;
 import io.github.railgun19457.easyland.core.SelectionManager;
@@ -208,6 +209,10 @@ public class EasyLand extends JavaPlugin implements EasylandAPI {
         // 注册容器保护监听器
         getServer().getPluginManager().registerEvents(
             new ContainerProtectionListener(flagManager), this);
+
+        // 注册怪物生成保护监听器
+        getServer().getPluginManager().registerEvents(
+            new MobProtectionListener(flagManager), this);
         
         // 注册选择工具监听器
         getServer().getPluginManager().registerEvents(

@@ -6,6 +6,7 @@ general:
   player-only-command: "§cThis command can only be executed by players."
   no-permission: "§cYou don't have permission to execute this command."
   invalid-args: "§cInvalid arguments. Usage: %s"
+  invalid-name-format: "§cInvalid land name format. Only letters, numbers, underscores, hyphens, and Chinese characters are allowed."
   reload-success: "§aConfiguration reloaded successfully."
   unknown: "Unknown"
 
