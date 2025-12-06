@@ -45,6 +45,7 @@ notification:
 create:
   success: "§aSuccessfully created land! ID: %s"
   failed: "§cFailed to create land. Please check if the selection is valid, overlaps with other lands, or exceeds limits."
+  name-exists: "§cLand name '%s' already exists, please use another name."
 
 # Claim Land
 claim:

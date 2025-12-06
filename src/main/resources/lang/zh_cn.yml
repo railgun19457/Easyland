@@ -45,6 +45,7 @@ notification:
 create:
   success: "§a成功创建领地！ID: %s"
   failed: "§c创建领地失败。请检查选区是否有效、是否与其他领地重叠、或是否超出限制。"
+  name-exists: "§c领地名称 '%s' 已存在，请使用其他名称。"
 
 # 认领领地
 claim:

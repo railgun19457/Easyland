@@ -677,6 +677,12 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(i18nManager.getMessage("general.invalid-name-format"));
                 return;
             }
+            
+            // 检查名称是否已存在
+            if (landManager.getLandByIdOrName(name).isPresent()) {
+                player.sendMessage(i18nManager.getMessage("create.name-exists", name));
+                return;
+            }
         }
         
         // 创建领地
@@ -983,6 +989,23 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
         
+        // 检查目标领地是否存在
+        Optional<Land> targetLandOpt = landManager.getLandByIdOrName(landId);
+        if (targetLandOpt.isEmpty()) {
+            player.sendMessage(i18nManager.getMessage("delete.not-found"));
+            return;
+        }
+        Land targetLand = targetLandOpt.get();
+
+        // 检查新名称是否已被其他领地使用
+        Optional<Land> existingLandOpt = landManager.getLandByIdOrName(newName);
+        if (existingLandOpt.isPresent()) {
+            if (existingLandOpt.get().getId() != targetLand.getId()) {
+                player.sendMessage(i18nManager.getMessage("create.name-exists", newName));
+                return;
+            }
+        }
+        
         boolean success = landManager.renameLand(player, landId, newName);
         
         if (success) {
@@ -1010,6 +1033,13 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             name = args[2];
             if (!isValidLandName(name)) {
                 player.sendMessage(i18nManager.getMessage("general.invalid-name-format"));
+                return;
+            }
+
+            // 检查名称是否已被其他领地使用
+            Optional<Land> existingLandOpt = landManager.getLandByIdOrName(name);
+            if (existingLandOpt.isPresent()) {
+                player.sendMessage(i18nManager.getMessage("create.name-exists", name));
                 return;
             }
         }
