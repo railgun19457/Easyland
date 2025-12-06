@@ -1211,22 +1211,23 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             }
             
             Player player = (sender instanceof Player) ? (Player) sender : null;
+            String currentArg = args[args.length - 1].toLowerCase();
             
             switch (subCommand) {
                 case "claim":
                     // 补全无主领地（ownerId == 0）
                     if (args.length == 2) {
-                        completions.addAll(getUnownedLandCompletions());
+                        filterAndAdd(completions, getUnownedLandCompletions(), currentArg);
                     }
                     break;
 
                 case "delete":
                     // 管理员可以补全所有领地，普通玩家只能补全自己的领地
-                    if (player != null) {
+                    if (player != null && args.length == 2) {
                         if (player.hasPermission("easyland.admin.manage") || player.hasPermission("easyland.admin")) {
-                            completions.addAll(getAllLandCompletions());
+                            filterAndAdd(completions, getAllLandCompletions(), currentArg);
                         } else {
-                            completions.addAll(getPlayerLandCompletions(player));
+                            filterAndAdd(completions, getPlayerLandCompletions(player), currentArg);
                         }
                     }
                     break;
@@ -1238,7 +1239,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "trustlist":
                     // 补全玩家拥有的领地ID和名称
                     if (args.length == 2 && player != null) {
-                        completions.addAll(getPlayerLandCompletions(player));
+                        filterAndAdd(completions, getPlayerLandCompletions(player), currentArg);
                     }
                     break;
                     
@@ -1246,12 +1247,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "untrust":
                     if (args.length == 2 && player != null) {
                         // 补全玩家拥有的领地ID和名称
-                        completions.addAll(getPlayerLandCompletions(player));
+                        filterAndAdd(completions, getPlayerLandCompletions(player), currentArg);
                     } else if (args.length == 3 && player != null) {
                         // 补全在线玩家名称
-                        String partial = args[2].toLowerCase();
                         for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
-                            if (!onlinePlayer.equals(player) && onlinePlayer.getName().toLowerCase().startsWith(partial)) {
+                            if (!onlinePlayer.equals(player) && onlinePlayer.getName().toLowerCase().startsWith(currentArg)) {
                                 completions.add(onlinePlayer.getName());
                             }
                         }
@@ -1262,7 +1262,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "tp":
                     if (args.length == 2 && player != null) {
                         // 补全所有领地ID和名称
-                        completions.addAll(getAllLandCompletions());
+                        filterAndAdd(completions, getAllLandCompletions(), currentArg);
                     }
                     break;
                     
@@ -1273,16 +1273,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 case "list":
                     if (args.length == 2) {
                         // 补全页码
-                        completions.add("1");
-                        completions.add("2");
-                        completions.add("3");
+                        filterAndAdd(completions, Arrays.asList("1", "2", "3"), currentArg);
                     }
                     break;
                     
                 case "show":
                     if (args.length == 2) {
                         // 补全领地名称
-                        completions.addAll(getAllLandCompletions());
+                        filterAndAdd(completions, getAllLandCompletions(), currentArg);
                     }
                     break;
                     
@@ -1290,23 +1288,35 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                     if (args.length == 2) {
                         // 只补全领地
                         if (player != null) {
-                            completions.addAll(getPlayerLandCompletions(player));
+                            filterAndAdd(completions, getPlayerLandCompletions(player), currentArg);
                         }
                     } else if (args.length == 3) {
                         // args[1] 是领地，args[2] 是规则
-                        // 只有当输入了领地名称（args[1]不为空）时才补全规则
-                        if (!args[1].isEmpty()) {
-                            completions.addAll(PROTECTION_RULES);
-                        }
+                        filterAndAdd(completions, PROTECTION_RULES, currentArg);
                     } else if (args.length == 4) {
                         // args[1] 领地，args[2] 规则，args[3] 值
-                        completions.addAll(Arrays.asList("true", "false"));
+                        filterAndAdd(completions, Arrays.asList("true", "false"), currentArg);
                     }
                     break;
             }
         }
         
         return completions;
+    }
+
+    /**
+     * 过滤并添加补全建议。
+     *
+     * @param target 目标列表
+     * @param source 源列表
+     * @param partial 部分参数
+     */
+    private void filterAndAdd(List<String> target, List<String> source, String partial) {
+        for (String s : source) {
+            if (s.toLowerCase().startsWith(partial)) {
+                target.add(s);
+            }
+        }
     }
     
     /**
